@@ -63,13 +63,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     criar_usuario(update.effective_user)
 
     await update.message.reply_text(
-        "🚀 Bem-vindo ao JubaPay!\n\n"
-        "Comandos:\n"
+        "🔥 Bem-vindo à JubaPay!\n\n"
+        "Sua carteira digital inteligente.\n\n"
+        "✅ Depósitos instantâneos\n"
+        "✅ Carteira individual\n"
+        "✅ Controle total do saldo\n"
+        "✅ Saques rápidos\n\n"
+        "📌 Comandos disponíveis:\n\n"
         "/depositar 5 - Depositar via PIX\n"
-        "/pix 5 - Depositar via PIX\n"
         "/saldo - Ver sua carteira\n"
-        "/sacar 5 SUA_CHAVE_PIX - Sacar saldo"
+        "/sacar 5 SUA_CHAVE_PIX - Solicitar saque\n\n"
+        "💎 JubaPay — sua liberdade financeira dentro do Telegram."
     )
+    criar_usuario(update.effective_user)
+
+    
 
 
 async def saldo(update: Update, context: ContextTypes.DEFAULT_TYPE):
