@@ -3,7 +3,7 @@ import uuid
 import base64
 import asyncio
 import requests
-import psycopg2
+import psycopg
 from io import BytesIO
 from decimal import Decimal
 from telegram import Update
@@ -25,7 +25,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-conn = psycopg2.connect(DATABASE_URL)
+conn = psycopg.connect(DATABASE_URL)
 conn.autocommit = True
 cursor = conn.cursor()
 
