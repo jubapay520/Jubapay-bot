@@ -15,7 +15,7 @@ MISTIC_URL = "https://api.misticpay.com/api/transactions/create"
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚀 Bot JubaPay online!\n\n"
-        "Use /pix 10 para gerar um PIX."
+        "Use /pix 5 para gerar um PIX."
     )
 
 
