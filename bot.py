@@ -60,6 +60,7 @@ async def pix(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             data = response.json()
+            print(data)
         except Exception:
             await update.message.reply_text(
                 f"❌ A Mistic Pay não retornou JSON.\n\n"
