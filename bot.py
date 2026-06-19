@@ -304,8 +304,29 @@ async def sacar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data = r.json()
 
         if r.status_code not in [200, 201]:
-            await update.message.reply_text(f"❌ Erro ao solicitar saque:\n{data}")
-            return
+
+    mensagem_api = str(data.get("message", "")).lower()
+
+    if "aguardando aprovação" in mensagem_api:
+        await update.message.reply_text(
+            "⏳ SAQUE EM ANÁLISE\n\n"
+            "Seu pedido foi registrado com sucesso.\n"
+            "Aguarde a aprovação do saque."
+        )
+
+    elif "saldo insuficiente" in mensagem_api:
+        await update.message.reply_text(
+            "❌ SALDO INSUFICIENTE\n\n"
+            "Você não possui saldo suficiente para realizar este saque."
+        )
+
+    else:
+        await update.message.reply_text(
+            "⚠️ Não foi possível processar o saque.\n"
+            "Tente novamente mais tarde."
+        )
+
+    return
 
         cursor.execute("""
             UPDATE usuarios
