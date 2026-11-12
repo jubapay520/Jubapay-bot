@@ -31,11 +31,17 @@ BASE = Path(__file__).parent
 app = FastAPI(title="BaixaTudo", docs_url=None, redoc_url=None)
 sem = asyncio.Semaphore(MAX_PARALLEL)
 
+# Cookies: variável YTDLP_COOKIES ou Secret File do Render (/etc/secrets/cookies.txt).
+# Copiamos para /tmp porque o yt-dlp regrava o arquivo e /etc/secrets é só leitura.
+_cookie_text = COOKIES.replace("\\n", "\n") if COOKIES.strip() else ""
+for _p in (os.getenv("YTDLP_COOKIES_FILE", ""), "/etc/secrets/cookies.txt", str(Path(__file__).parent / "cookies.txt")):
+    if not _cookie_text and _p and os.path.isfile(_p):
+        _cookie_text = open(_p, encoding="utf-8", errors="ignore").read()
 _cookie_file = None
-if COOKIES.strip():
+if _cookie_text.strip():
     fd, _cookie_file = tempfile.mkstemp(suffix=".txt")
     with os.fdopen(fd, "w") as f:
-        f.write(COOKIES.replace("\\n", "\n"))
+        f.write(_cookie_text)
 
 URL_RE = re.compile(r"^https?://", re.I)
 
@@ -79,9 +85,9 @@ def friendly_error(e: Exception) -> str:
     msg = str(e)
     low = msg.lower()
     if "sign in to confirm" in low or ("bot" in low and "youtube" in low):
-        return "O YouTube bloqueou o servidor (pede login). Configure YTDLP_COOKIES no servidor."
+        return "O YouTube bloqueou o servidor (pede login). Adicione o cookies.txt no servidor."
     if "login" in low or "private" in low or "rate-limit" in low:
-        return "Esse vídeo exige login ou é privado. Configure YTDLP_COOKIES no servidor."
+        return "Esse vídeo exige login ou é privado. Adicione o cookies.txt no servidor."
     if "unsupported url" in low:
         return "Esse site/link não é suportado."
     if "max_filesize" in low or "larger than max" in low:
@@ -169,7 +175,7 @@ async def api_download(request: Request):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "yt_dlp": yt_dlp.version.__version__, "needs_code": bool(ACCESS_CODE)}
+    return {"ok": True, "yt_dlp": yt_dlp.version.__version__, "needs_code": bool(ACCESS_CODE), "cookies": bool(_cookie_file)}
 
 
 @app.exception_handler(HTTPException)

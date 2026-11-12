@@ -38,7 +38,9 @@ Um web app (PWA) não tem nada disso: você manda o **link** para os amigos e pr
 
 ## Problemas comuns
 - **YouTube pede login / "não é um robô"**: o YouTube bloqueia muitos servidores na nuvem.
-  Configure `YTDLP_COOKIES`.
+  Solução: no Render, vá em **Environment → Secret Files → Add Secret File**, nome
+  `cookies.txt`, e cole o conteúdo do cookies.txt exportado (de uma conta secundária).
+  Confira em `/api/health` se aparece `"cookies": true`.
 - **Parou de funcionar num site**: faça "Manual Deploy → Clear cache & deploy" no Render
   para pegar a versão mais nova do yt-dlp (os sites mudam com frequência).
 
