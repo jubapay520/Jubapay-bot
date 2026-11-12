@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BaixaTudo</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BaixaTudo">
+<meta name="theme-color" content="#0f0f14">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root { --bg:#0f0f14; --card:#1a1a22; --line:#2a2a36; --txt:#f2f2f5; --mut:#9a9aab; --acc:#ff3d6e; --acc2:#7c5cff; --ok:#2ecc71; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif; }
+  main { max-width:520px; margin:0 auto; padding:calc(env(safe-area-inset-top) + 24px) 16px calc(env(safe-area-inset-bottom) + 32px); }
+  h1 { font-size:30px; margin:8px 0 2px; letter-spacing:-.5px; }
+  h1 span { background:linear-gradient(90deg,var(--acc),var(--acc2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:var(--mut); margin:0 0 20px; font-size:14px; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+  .chip { font-size:12px; padding:4px 10px; border-radius:99px; background:var(--card); border:1px solid var(--line); color:var(--mut); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:14px; }
+  label { font-size:13px; color:var(--mut); display:block; margin-bottom:6px; }
+  input { width:100%; font-size:16px; padding:14px; border-radius:12px; border:1px solid var(--line); background:#111118; color:var(--txt); outline:none; }
+  input:focus { border-color:var(--acc2); }
+  .row { display:flex; gap:8px; margin-top:10px; }
+  button { font:600 16px/1 inherit; font-family:inherit; border:0; border-radius:12px; padding:15px; cursor:pointer; color:#fff; flex:1; }
+  button:disabled { opacity:.5; }
+  .primary { background:linear-gradient(90deg,var(--acc),var(--acc2)); }
+  .ghost { background:#262632; color:var(--txt); flex:0 0 auto; padding:15px 16px; }
+  .seg { display:flex; background:#111118; border-radius:12px; padding:4px; margin-top:12px; border:1px solid var(--line); }
+  .seg button { background:transparent; color:var(--mut); padding:10px; font-size:14px; }
+  .seg button.on { background:#2a2a38; color:var(--txt); }
+  .preview { display:flex; gap:12px; align-items:center; }
+  .preview img { width:110px; height:62px; object-fit:cover; border-radius:10px; background:#000; flex:0 0 auto; }
+  .preview .t { font-weight:600; font-size:15px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .preview .m { color:var(--mut); font-size:13px; margin-top:3px; }
+  .status { font-size:14px; color:var(--mut); margin-top:12px; min-height:20px; }
+  .status.err { color:#ff6b6b; } .status.ok { color:var(--ok); }
+  .bar { height:6px; background:#111118; border-radius:9px; overflow:hidden; margin-top:10px; display:none; }
+  .bar i { display:block; height:100%; width:30%; background:linear-gradient(90deg,var(--acc),var(--acc2)); border-radius:9px; animation:ind 1.2s infinite ease-in-out; }
+  .bar.det i { animation:none; transition:width .2s; }
+  @keyframes ind { 0%{margin-left:-30%} 100%{margin-left:100%} }
+  video, audio { width:100%; border-radius:12px; margin-top:12px; background:#000; }
+  .save { background:var(--ok); margin-top:10px; width:100%; }
+  .help { font-size:13px; color:var(--mut); }
+  .help b { color:var(--txt); }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Baixa<span>Tudo</span></h1>
+  <p class="sub">Cole o link e baixe o vídeo direto no seu iPhone.</p>
+  <div class="chips"><span class="chip">YouTube</span><span class="chip">TikTok</span><span class="chip">Instagram</span><span class="chip">Facebook</span><span class="chip">X / Twitter</span><span class="chip">+ outros</span></div>
+
+  <div class="card hidden" id="codeCard">
+    <label for="code">Código de acesso</label>
+    <input id="code" type="password" placeholder="Senha que seu amigo te passou" autocomplete="current-password">
+  </div>
+
+  <div class="card">
+    <label for="url">Link do vídeo</label>
+    <input id="url" type="url" inputmode="url" placeholder="https://..." autocapitalize="off" autocorrect="off" spellcheck="false">
+    <div class="row">
+      <button class="ghost" id="paste" type="button">Colar</button>
+      <button class="primary" id="go" type="button">Baixar</button>
+    </div>
+    <div class="seg" role="tablist">
+      <button class="on" data-mode="video" type="button">🎬 Vídeo (MP4)</button>
+      <button data-mode="audio" type="button">🎵 Só áudio (MP3)</button>
+    </div>
+    <div class="bar" id="bar"><i id="barFill"></i></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="card hidden" id="result">
+    <div class="preview">
+      <img id="thumb" alt="">
+      <div><div class="t" id="title"></div><div class="m" id="meta"></div></div>
+    </div>
+    <video id="player" controls playsinline class="hidden"></video>
+    <audio id="aplayer" controls class="hidden"></audio>
+    <button class="save" id="save" type="button">📲 Salvar no iPhone</button>
+  </div>
+
+  <div class="card help">
+    <b>Como instalar no iPhone:</b> abra este site no <b>Safari</b> → toque em <b>Compartilhar</b> (□↑) → <b>Adicionar à Tela de Início</b>.<br><br>
+    <b>Como salvar o vídeo:</b> depois de baixar, toque em <b>Salvar no iPhone</b> → <b>Salvar Vídeo</b> (vai para o app Fotos) ou <b>Salvar em Arquivos</b>.
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let mode = "video", needsCode = false, lastFile = null, lastUrl = null;
+
+function store(k, v) { try { localStorage.setItem(k, v); } catch {} }
+function load(k) { try { return localStorage.getItem(k) || ""; } catch { return ""; } }
+
+fetch("api/health").then(r => r.json()).then(h => {
+  needsCode = h.needs_code;
+  if (needsCode) { $("#codeCard").classList.remove("hidden"); $("#code").value = load("bt_code"); }
+}).catch(() => {});
+
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".seg button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); mode = b.dataset.mode;
+});
+
+$("#paste").onclick = async () => {
+  try { $("#url").value = (await navigator.clipboard.readText()).trim(); }
+  catch { $("#url").focus(); status("Toque e segure no campo para colar.", ""); }
+};
+
+function status(msg, cls) { const s = $("#status"); s.textContent = msg; s.className = "status " + (cls || ""); }
+function bar(show, pct) {
+  const b = $("#bar"), f = $("#barFill");
+  b.style.display = show ? "block" : "none";
+  if (pct == null) { b.classList.remove("det"); f.style.width = "30%"; }
+  else { b.classList.add("det"); f.style.marginLeft = "0"; f.style.width = pct + "%"; }
+}
+function fmtDur(s) { if (!s) return ""; s = Math.round(s); const m = Math.floor(s/60), r = s%60; return m + ":" + String(r).padStart(2,"0"); }
+
+async function post(path, body) {
+  const r = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) { let e = "Erro " + r.status; try { e = (await r.json()).error || e; } catch {} throw new Error(e); }
+  return r;
+}
+
+$("#go").onclick = async () => {
+  const url = $("#url").value.trim(), code = $("#code").value.trim();
+  if (!url) return status("Cole um link primeiro.", "err");
+  if (needsCode && !code) return status("Digite o código de acesso.", "err");
+  store("bt_code", code);
+  $("#go").disabled = true; $("#result").classList.add("hidden");
+  $("#player").classList.add("hidden"); $("#aplayer").classList.add("hidden");
+  if (lastUrl) URL.revokeObjectURL(lastUrl);
+  try {
+    status("Procurando o vídeo…"); bar(true);
+    const info = await (await post("api/info", { url, code })).json();
+    $("#title").textContent = info.title;
+    $("#meta").textContent = [info.site, info.uploader, fmtDur(info.duration)].filter(Boolean).join(" · ");
+    $("#thumb").src = info.thumbnail || ""; $("#thumb").style.display = info.thumbnail ? "" : "none";
+    $("#result").classList.remove("hidden"); $("#save").disabled = true;
+
+    status("Baixando no servidor… (vídeos longos demoram)");
+    const r = await post("api/download", { url, code, mode });
+    const total = +r.headers.get("Content-Length") || 0;
+    const reader = r.body.getReader(); const chunks = []; let got = 0;
+    status("Enviando para o seu celular…");
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      chunks.push(value); got += value.length;
+      if (total) bar(true, Math.round(got / total * 100));
+    }
+    const type = r.headers.get("Content-Type") || "video/mp4";
+    const cd = r.headers.get("Content-Disposition") || "";
+    let name = (cd.match(/filename\*=UTF-8''([^;]+)/i) || [])[1];
+    name = name ? decodeURIComponent(name) : (cd.match(/filename="?([^";]+)/i) || [])[1] || (mode === "audio" ? "audio.mp3" : "video.mp4");
+    const blob = new Blob(chunks, { type });
+    lastFile = new File([blob], name, { type });
+    lastUrl = URL.createObjectURL(blob);
+    const p = mode === "audio" ? $("#aplayer") : $("#player");
+    p.src = lastUrl; p.classList.remove("hidden");
+    $("#save").disabled = false;
+    status("Pronto! " + (got / 1048576).toFixed(1) + " MB — toque em Salvar no iPhone.", "ok");
+  } catch (e) {
+    status(e.message || "Falhou.", "err");
+  } finally { bar(false); $("#go").disabled = false; }
+};
+
+$("#save").onclick = async () => {
+  if (!lastFile) return;
+  if (navigator.canShare && navigator.canShare({ files: [lastFile] })) {
+    try { await navigator.share({ files: [lastFile] }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a"); a.href = lastUrl; a.download = lastFile.name;
+  document.body.appendChild(a); a.click(); a.remove();
+};
+
+$("#url").addEventListener("keydown", e => { if (e.key === "Enter") $("#go").click(); });
+// Permite abrir com ?url=... (útil para Atalhos do iOS)
+const qp = new URLSearchParams(location.search).get("url"); if (qp) $("#url").value = qp;
+</script>
+</body>
+</html>
