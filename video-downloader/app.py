@@ -86,6 +86,8 @@ def friendly_error(e: Exception) -> str:
     low = msg.lower()
     if "sign in to confirm" in low or ("bot" in low and "youtube" in low):
         return "O YouTube bloqueou o servidor (pede login). Adicione o cookies.txt no servidor."
+    if "available to everyone" in low or "certain audiences" in low or "age" in low and "restrict" in low:
+        return "Esse vídeo tem restrição (idade, país ou conta) e o site exige login. Precisa do cookies.txt no servidor."
     if "login" in low or "private" in low or "rate-limit" in low:
         return "Esse vídeo exige login ou é privado. Adicione o cookies.txt no servidor."
     if "unsupported url" in low:
