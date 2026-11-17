@@ -96,6 +96,17 @@ textarea:focus,input:focus,select:focus,button:focus-visible{outline:2px solid v
 .sfxgrid button{text-align:left;font:700 13px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;display:flex;gap:8px;align-items:center}
 .sfxgrid button::before{content:"▶";color:var(--accent);font-size:11px}
 .scene select{padding:9px 10px;font-size:15px}
+.auto{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 14%,var(--panel)),var(--panel) 60%)}
+.auto h2{font-size:17px}
+ol.prog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+ol.prog li{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px;color:var(--mute)}
+ol.prog li::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--line);flex:none}
+ol.prog li.on{color:var(--fg)}
+ol.prog li.on::before{border-color:var(--accent);border-top-color:transparent;animation:spin .8s linear infinite}
+ol.prog li.ok{color:var(--fg)}
+ol.prog li.ok::before{background:var(--go);border-color:var(--go)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){ol.prog li.on::before{animation:none}}
 .check{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px}
 .check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
 input[type=color]{width:100%;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:4px}
@@ -132,6 +143,29 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <button role="tab" data-tab="estilo" aria-selected="false"><b>4</b>Estilo</button>
     <button role="tab" data-tab="exportar" aria-selected="false"><b>5</b>Exportar</button>
   </nav>
+
+  <!-- 1 ROTEIRO: tudo com IA -->
+  <section class="card auto" data-panel="roteiro" id="autoCard">
+    <h2>✨ Fazer tudo com IA</h2>
+    <p class="hint">A IA escreve o roteiro, divide as cenas, escolhe o clima e os efeitos sonoros de cada uma, cria fundos animados e uma trilha sonora, e monta o vídeo. Ele já sai pronto para exportar.</p>
+    <label class="f">Sobre o que é o vídeo?<input type="text" id="autoTema" value="Relacionamento: sinais escondidos de que algo mudou"></label>
+    <div class="grid2">
+      <label class="f">Duração<select id="autoDur"><option value="30">30 s</option><option value="40" selected>40 s</option><option value="60">60 s</option></select></label>
+      <label class="f">Chamada final<input type="text" id="autoCta" value="Me chama agora no WhatsApp"></label>
+    </div>
+    <label class="f">Personagens das imagens<input type="text" id="autoChars" value="casal brasileiro de 30 anos, mulher de cabelo castanho ondulado, homem de barba curta"></label>
+    <button class="btn primary wide" id="autoGo">Criar vídeo completo</button>
+    <p class="hint" id="autoWarn">Substitui o roteiro, as fotos e a narração do projeto atual. O seu estilo de legenda e de chamada é mantido.</p>
+    <ol class="prog" id="autoSteps" hidden></ol>
+    <div id="autoNext" hidden class="card inner">
+      <h3>Pronto. Toque ▶ na prévia para assistir</h3>
+      <p class="hint">Já dá para exportar assim. Para ficar com cara profissional, troque duas coisas:</p>
+      <p class="hint"><b>1. Fotos de pessoas.</b> O app não gera fotos realistas sozinho. Copie o pedido abaixo, cole no ChatGPT ou no Gemini, salve as imagens na galeria e envie todas de uma vez na aba Cenas: elas entram na ordem certa.</p>
+      <button class="btn" id="copyImgs">Copiar pedido das imagens</button>
+      <p class="hint"><b>2. Voz.</b> Copie o texto, gere a voz no app que você usa (ElevenLabs, CapCut) ou grave lendo, e envie na aba Áudio. A legenda se encaixa sozinha.</p>
+      <button class="btn" id="copyNarr">Copiar texto da narração</button>
+    </div>
+  </section>
 
   <!-- 1 ROTEIRO -->
   <section class="card" data-panel="roteiro">
@@ -231,6 +265,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <h2 style="margin-top:6px">Música de fundo</h2>
     <div class="row">
       <button class="btn grow" id="musicBtn">Escolher música</button>
+      <button class="btn grow" id="musicGen">Gerar trilha</button>
       <button class="btn small danger" id="musicClear" hidden>Remover</button>
     </div>
     <input type="file" id="musicFile" accept="audio/*,video/*" hidden>
@@ -465,7 +500,7 @@ const DEFAULT_STYLE = {mode:'type', font:'montserrat', bg:'stroke', upper:true, 
   icon:'whats', arrow:'chev', anim:'cascade', arrowN:5, iconSz:8.5,
   ovPos:'cta', ovSize:18, ovRound:true, sfxVisual:true};
 const DEFAULT_AUDIO = {trimStart:0, trimEnd:0, shortPauses:false, maxPause:0.4, speed:1, extraPause:0};
-const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
+const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], moods:[], genMusic:false, sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
 let ST = JSON.parse(JSON.stringify(BASE));
 try { const s = JSON.parse(localStorage.getItem('estudio-vsl-v1')||'null'); if (s) ST = {...ST, ...s, style:{...DEFAULT_STYLE, ...(s.style||{})}, audio:{...DEFAULT_AUDIO, ...(s.audio||{})}, files:{...BASE.files, ...(s.files||{})}}; } catch(e){}
 const save = () => { try { localStorage.setItem('estudio-vsl-v1', JSON.stringify(ST)); } catch(e){} };
@@ -672,7 +707,7 @@ let sfxReady = null;
 const renderSfx = () => sfxReady || (sfxReady = (async () => { for (const k of Object.keys(SFX_DEFS)){ try { SFXBUF[k] = await synthSfx(k); } catch(e){} } })());
 const sfxOptions = () => [['', 'Sem efeito sonoro'], ...Object.entries(SFX_DEFS).map(([k,d]) => [k, d.label]), ...(ST.files.sfx||[]).map(f => ['u:'+f.id, 'Meu: '+f.name])];
 function previewSfx(k){ const b = SFXBUF[k]; if (!b) return; const a = ac(); a.resume(); const src = a.createBufferSource(); src.buffer = b; const g = a.createGain(); g.gain.value = Math.max(0.3, ST.sfxVol); src.connect(g).connect(a.destination); src.start(); }
-const sceneArrays = () => [MEDIA, ST.prompts, ST.sfx];
+const sceneArrays = () => { if (!Array.isArray(ST.moods)) ST.moods = []; if (!Array.isArray(ST.sfx)) ST.sfx = []; return [MEDIA, ST.prompts, ST.sfx, ST.moods]; };
 function spliceScenes(i, del, add){ const n = lines().length; sceneArrays().forEach(arr => { while (arr.length < n) arr.push(arr === MEDIA ? [] : ''); const removed = arr.splice(i, del, ...Array.from({length:add}, () => arr === MEDIA ? [] : '')); if (arr === MEDIA) removed.forEach(r => (r||[]).forEach(m => DB.del(m.id))); }); }
 
 /* ---------- timing ---------- */
@@ -745,15 +780,40 @@ function drawShot(sh, t, alpha){
   const pan = ST.style.kenburns ? (sh.k%3===0 ? -0.25 : sh.k%3===1 ? 0.25 : 0) * (p-0.5) : 0;
   if (m && m.type==='img') cover(m.el, m.el.naturalWidth, m.el.naturalHeight, 0,0,W,mh, kb, pan);
   else if (m && m.type==='vid' && m.el.readyState >= 2) cover(m.el, m.el.videoWidth, m.el.videoHeight, 0,0,W,mh, 1, 0);
-  else {
-    const hue = (sh.i*47+205)%360; const g = ctx.createLinearGradient(0,0,W,mh);
-    g.addColorStop(0, `hsl(${hue} 35% 22%)`); g.addColorStop(1, `hsl(${(hue+40)%360} 30% 9%)`);
-    ctx.fillStyle = g; ctx.fillRect(0,0,W,mh);
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.font = `900 ${W*0.07}px Montserrat, sans-serif`; ctx.fillText('CENA '+(sh.i+1), W/2, mh*0.38);
-    ctx.font = `700 ${W*0.032}px Manrope, sans-serif`; ctx.fillStyle='rgba(255,255,255,.4)'; ctx.fillText('adicione fotos na aba Cenas', W/2, mh*0.38 + W*0.07);
-  }
+  else drawMood(sh, t, mh);
   ctx.restore();
+}
+const MOODS = {triste:['#06101f','#1d3a5e','#7fb2ff'], tenso:['#140404','#4d0d0d','#ff4a3d'], romantico:['#170510','#5e1431','#ff7aa8'], esperanca:['#140c03','#6e4210','#ffd27a'], misterio:['#0a0614','#341b58','#b48cff'], urgente:['#160802','#6e2504','#ff8a1f']};
+const MOOD_KEYS = Object.keys(MOODS);
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; };
+function heartPath(g, cx, cy, s){ g.beginPath(); g.moveTo(cx, cy + s*0.42); g.bezierCurveTo(cx - s*0.6, cy, cx - s*0.45, cy - s*0.45, cx, cy - s*0.18); g.bezierCurveTo(cx + s*0.45, cy - s*0.45, cx + s*0.6, cy, cx, cy + s*0.42); }
+function drawMood(sh, t, mh){
+  const mood = (ST.moods && MOODS[ST.moods[sh.i]]) ? ST.moods[sh.i] : MOOD_KEYS[(sh.i*2+1) % MOOD_KEYS.length];
+  const [c0, c1, c2] = MOODS[mood]; const base = ctx.globalAlpha;
+  const g = ctx.createLinearGradient(0, 0, 0, mh); g.addColorStop(0, c1); g.addColorStop(1, c0); ctx.fillStyle = g; ctx.fillRect(0, 0, W, mh);
+  const gx = W*(0.5 + 0.25*Math.sin(t*0.3 + sh.i)), gy = mh*(0.38 + 0.1*Math.cos(t*0.25 + sh.i));
+  const rg = ctx.createRadialGradient(gx, gy, 0, gx, gy, W*0.85); rg.addColorStop(0, rgba(c2, 0.42)); rg.addColorStop(1, rgba(c2, 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, mh);
+  // light rays
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let r = 0; r < 4; r++){ const a = -0.5 + r*0.28 + 0.05*Math.sin(t*0.4 + r); ctx.globalAlpha = base*0.05; ctx.fillStyle = c2; ctx.beginPath(); ctx.moveTo(W*0.15, -10); ctx.lineTo(W*0.15 + Math.cos(a+1.2)*mh*1.4 - W*0.08, Math.sin(a+1.2)*mh*1.4); ctx.lineTo(W*0.15 + Math.cos(a+1.2)*mh*1.4 + W*0.08, Math.sin(a+1.2)*mh*1.4); ctx.closePath(); ctx.fill(); }
+  // bokeh
+  let seed = (sh.i+1)*7919; const rnd = () => (seed = (seed*9301 + 49297) % 233280) / 233280;
+  for (let b = 0; b < 24; b++){
+    const bx = rnd()*W, by0 = rnd()*mh, r = W*(0.012 + rnd()*0.055), sp = 0.012 + rnd()*0.03, ph = rnd()*6.28;
+    const by = ((by0 - t*sp*mh) % mh + mh) % mh; const a = 0.25 + 0.35*(0.5 + 0.5*Math.sin(t*0.9 + ph));
+    const bg = ctx.createRadialGradient(bx, by, 0, bx, by, r); bg.addColorStop(0, rgba(c2, 0.9)); bg.addColorStop(0.55, rgba(c2, 0.35)); bg.addColorStop(1, rgba(c2, 0));
+    ctx.globalAlpha = base*a*0.55; ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.fill();
+  }
+  ctx.restore(); ctx.globalAlpha = base;
+  // symbol for love moods
+  if (mood === 'romantico' || mood === 'triste'){
+    const s = W*0.42*(1 + 0.03*Math.sin(t*2.4)), cx = W/2, cy = mh*0.42;
+    ctx.save(); ctx.globalAlpha = base*0.22; ctx.strokeStyle = c2; ctx.lineWidth = W*0.012; ctx.shadowColor = c2; ctx.shadowBlur = W*0.05;
+    heartPath(ctx, cx, cy, s); ctx.stroke();
+    if (mood === 'triste'){ ctx.beginPath(); ctx.moveTo(cx, cy - s*0.18); ctx.lineTo(cx - s*0.06, cy); ctx.lineTo(cx + s*0.05, cy + s*0.12); ctx.lineTo(cx - s*0.03, cy + s*0.26); ctx.lineTo(cx, cy + s*0.42); ctx.stroke(); }
+    ctx.restore();
+  }
+  const vg = ctx.createRadialGradient(W/2, mh*0.45, W*0.3, W/2, mh*0.45, W*1.0); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, mh);
 }
 function layout(items, px){
   ctx.font = fontStr(px);
@@ -1257,12 +1317,12 @@ $('#recBtn').onclick = async () => {
 };
 $('#musicBtn').onclick = () => { ac(); $('#musicFile').click(); };
 async function setMusic(blob, name, id){
-  try { MUSIC = {buffer: await decodeBlob(blob), name, id}; ST.files.music = id; save(); $('#musicInfo').textContent = name; $('#musicInfo').className='pill ok'; $('#musicClear').hidden=false; }
+  try { MUSIC = {buffer: await decodeBlob(blob), name, id}; ST.files.music = id; ST.genMusic = false; save(); $('#musicInfo').textContent = name; $('#musicInfo').className='pill ok'; $('#musicClear').hidden=false; }
   catch(err){ $('#musicInfo').textContent = 'Não consegui ler essa música'; $('#musicInfo').className='pill warn'; }
   renderChecks();
 }
 $('#musicFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; if (MUSIC) DB.del(MUSIC.id); const id = await storeFile(f); setMusic(f, f.name || 'música', id); };
-$('#musicClear').onclick = () => { if (MUSIC) DB.del(MUSIC.id); MUSIC = null; ST.files.music = null; save(); $('#musicInfo').textContent='Sem música'; $('#musicInfo').className='pill'; $('#musicClear').hidden=true; renderChecks(); };
+$('#musicClear').onclick = () => { if (MUSIC && MUSIC.id) DB.del(MUSIC.id); MUSIC = null; ST.files.music = null; ST.genMusic = false; save(); $('#musicInfo').textContent='Sem música'; $('#musicInfo').className='pill'; $('#musicClear').hidden=true; renderChecks(); };
 $('#musicFade').checked = ST.musicFade; $('#musicFade').onchange = e => { ST.musicFade = e.target.checked; save(); };
 
 function drawWave(){
@@ -1282,6 +1342,119 @@ bindSlider('#offset','offset','#offOut', v => (v>0?'+':'')+num(v)+' s');
 bindSlider('#rate','rate','#rateOut', v => num(v,1));
 bindSlider('#narrVol','narrVol','#nvOut', v => Math.round(v*100)+'%');
 bindSlider('#musicVol','musicVol','#mvOut', v => Math.round(v*100)+'%');
+
+/* ---------- generated soundtrack ---------- */
+async function genMusic(){
+  const sr = 44100, bpm = 72, beat = 60/bpm, bar = beat*4, bars = 8, D = bar*bars;
+  const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext; const oc = new OC(2, Math.ceil(sr*D), sr);
+  const mtof = m => 440*Math.pow(2, (m-69)/12);
+  const prog = [[57,60,64],[53,57,60],[48,52,55],[55,59,62]]; // Am F C G
+  const master = oc.createGain(); master.gain.value = 0.8;
+  const comp = oc.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; master.connect(comp); comp.connect(oc.destination);
+  const conv = oc.createConvolver(); const ir = oc.createBuffer(2, sr*2.8, sr);
+  for (let c=0;c<2;c++){ const d = ir.getChannelData(c); let r = 777 + c; for (let i=0;i<d.length;i++){ r = (r*1103515245 + 12345) & 0x7fffffff; d[i] = (r/0x3fffffff - 1)*Math.pow(1 - i/d.length, 3); } }
+  conv.buffer = ir; const wet = oc.createGain(); wet.gain.value = 0.35; conv.connect(wet); wet.connect(master);
+  const bus = oc.createGain(); bus.connect(master); bus.connect(conv);
+  const lp = oc.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100; lp.connect(bus);
+  for (let b=0;b<bars;b++){
+    const ch = prog[b % 4], t0 = b*bar;
+    ch.forEach(n => [-6, 6].forEach(dt => {
+      const o = oc.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(n); o.detune.value = dt;
+      const g = oc.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.028, t0 + 0.9); g.gain.setValueAtTime(0.028, t0 + bar - 0.2); g.gain.linearRampToValueAtTime(0.0001, Math.min(D, t0 + bar + 0.5));
+      o.connect(g); g.connect(lp); o.start(t0); o.stop(Math.min(D, t0 + bar + 0.6));
+    }));
+    const bo = oc.createOscillator(); bo.type = 'sine'; bo.frequency.value = mtof(ch[0] - 24); const bg = oc.createGain();
+    bg.gain.setValueAtTime(0.0001, t0); bg.gain.linearRampToValueAtTime(0.22, t0 + 0.08); bg.gain.exponentialRampToValueAtTime(0.06, t0 + bar - 0.05); bg.gain.linearRampToValueAtTime(0.0001, t0 + bar);
+    bo.connect(bg); bg.connect(bus); bo.start(t0); bo.stop(t0 + bar);
+    const arp = [0,1,2,1,0,2,1,2];
+    arp.forEach((k, j) => {
+      const tt = t0 + j*beat/2, f = mtof(ch[k] + 12);
+      [['sine', 0.07], ['triangle', 0.02]].forEach(([type, v], q) => {
+        const o = oc.createOscillator(); o.type = type; o.frequency.value = f*(q ? 2 : 1); const g = oc.createGain();
+        g.gain.setValueAtTime(0.0001, tt); g.gain.linearRampToValueAtTime(v, tt + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, Math.min(D, tt + 0.9));
+        o.connect(g); g.connect(bus); o.start(tt); o.stop(Math.min(D, tt + 0.95));
+      });
+    });
+  }
+  return await new Promise((res, rej) => { oc.oncomplete = e => res(e.renderedBuffer); const r = oc.startRendering(); if (r && r.then) r.then(res, rej); });
+}
+function musicUI(){
+  if (MUSIC){ $('#musicInfo').textContent = MUSIC.name; $('#musicInfo').className = 'pill ok'; $('#musicClear').hidden = false; }
+  else { $('#musicInfo').textContent = 'Sem música'; $('#musicInfo').className = 'pill'; $('#musicClear').hidden = true; }
+  renderChecks();
+}
+async function useGenMusic(){
+  const buffer = await genMusic(); if (MUSIC && MUSIC.id) DB.del(MUSIC.id);
+  MUSIC = {buffer, name:'Trilha emocional (gerada)', id:null}; ST.genMusic = true; ST.files.music = null; save(); musicUI();
+}
+$('#musicGen').onclick = async () => { $('#musicInfo').textContent = 'Gerando trilha…'; try { await useGenMusic(); toast('Trilha criada'); } catch(e){ musicUI(); toast('Não consegui gerar a trilha'); } };
+
+/* ---------- auto mode: AI does everything ---------- */
+const AUTO_STEPS = ['Escrevendo o roteiro e dividindo as cenas', 'Escolhendo o clima e os efeitos de cada cena', 'Criando os fundos animados', 'Gerando a trilha sonora', 'Montando o vídeo'];
+function stepUI(k){ const ol = $('#autoSteps'); ol.hidden = false; ol.innerHTML = ''; AUTO_STEPS.forEach((t, i) => { const li = document.createElement('li'); li.textContent = t; li.className = i < k ? 'ok' : i === k ? 'on' : ''; ol.appendChild(li); }); }
+const SFX_KEYS = () => Object.keys(SFX_DEFS);
+function guessMood(l, i, n){
+  if (i === n-1) return 'urgente';
+  if (/amor|coração|beijo|juntos|paixão/i.test(l)) return 'romantico';
+  if (/chor|sofr|vazio|dor|sozinh|triste|frio/i.test(l)) return 'triste';
+  if (/escondid|segredo|sinais|ninguém|verdade|energia/i.test(l)) return 'misterio';
+  if (/agora|hoje|não deixa|antes que|rápido/i.test(l)) return 'urgente';
+  if (/descobr|caminho|merece|paz|clareza|mostrar/i.test(l)) return 'esperanca';
+  return i % 2 ? 'tenso' : 'misterio';
+}
+$('#autoGo').onclick = async () => {
+  const btn = $('#autoGo'); if (btn.disabled) return; btn.disabled = true; $('#autoNext').hidden = true; stop();
+  ac().resume();
+  try {
+    stepUI(0);
+    let L = null, scenes = null;
+    if (SAMPLE){
+      const dur = +$('#autoDur').value;
+      try {
+        const r = await SAMPLE.json(`Você cria VSLs curtas (vídeo vertical para Instagram/TikTok) em português do Brasil.
+Tema: "${$('#autoTema').value}". Duração alvo: ${dur} segundos, cerca de ${Math.round(dur*2.4)} palavras no total. Chamada final, exatamente: "${$('#autoCta').value}".
+Personagens fixos das imagens: ${$('#autoChars').value}.
+Devolva só JSON neste formato: {"linhas":["..."],"cenas":[{"clima":"...","efeito":"...","prompt":"..."}]}
+Regras do roteiro: estrutura gancho forte (primeira linha para a rolagem), identificação com a dor, curiosidade sobre algo escondido, promessa do que a pessoa vai descobrir, e a chamada final como última linha. Cada linha é uma cena, com 4 a 11 palavras, falando com "você", linguagem simples e falada, sem emojis, hashtags, rótulos ou aspas, sem prometer resultado garantido.
+"cenas" tem exatamente um item por linha, na mesma ordem.
+clima: um de ${MOOD_KEYS.join(', ')}.
+efeito: um de ${SFX_KEYS().join(', ')}, ou "" para nenhum. Use boom na primeira cena e ding na última, no máximo um braam, e deixe pelo menos um terço das cenas sem efeito.
+prompt: em inglês, para gerador de imagens: foto realista cinematográfica, vertical 9:16, luz dramática, emoção clara no rosto, os mesmos personagens, ação que ilustra a frase, sem texto na imagem.`, {modelTier:'default'});
+        if (r && Array.isArray(r.linhas) && r.linhas.length){ L = r.linhas.map(x => String(x).trim()).filter(Boolean); scenes = Array.isArray(r.cenas) ? r.cenas : []; }
+      } catch(e){ toast(aiErr(e)); }
+    }
+    if (!L){ L = lines(); scenes = []; if (!SAMPLE) toast('Sem a IA de texto aqui: usei o roteiro atual'); }
+    // new content replaces media and narration
+    MEDIA.forEach(a => (a||[]).forEach(m => DB.del(m.id))); MEDIA = L.map(() => []);
+    if (NARR){ DB.del(NARR.id); NARR = null; ST.files.narr = null; }
+    ST.script = $('#script').value = L.join('\n');
+    stepUI(1);
+    const keys = SFX_KEYS();
+    ST.sfx = L.map((l, i) => { const e = scenes[i] && scenes[i].efeito; return keys.includes(e) ? e : ''; });
+    if (!ST.sfx.some(Boolean)) suggestSfx();
+    ST.moods = L.map((l, i) => { const m = scenes[i] && scenes[i].clima; return MOODS[m] ? m : guessMood(l, i, L.length); });
+    ST.prompts = L.map((l, i) => (scenes[i] && scenes[i].prompt) || '');
+    await renderSfx();
+    stepUI(2); await new Promise(r => setTimeout(r, 250));
+    stepUI(3);
+    await useGenMusic(); ST.musicVol = 0.5; $('#musicVol').value = 0.5; $('#mvOut').textContent = '50%';
+    stepUI(4);
+    ST.rate = 2.3; $('#rate').value = 2.3; $('#rateOut').textContent = '2,3';
+    ST.audio = {...DEFAULT_AUDIO, extraPause: 0.35};
+    persistMedia(); save(); narrUI(); P.t = 0; redraw(); renderScenes(); draw(0);
+    stepUI(5); $('#autoNext').hidden = false;
+    $('#copyImgs').hidden = !ST.prompts.some(Boolean);
+    toast('Vídeo montado. Toque ▶ para assistir');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  } catch(e){ toast('Algo deu errado. Tente de novo.'); }
+  btn.disabled = false;
+};
+const copyText = (txt, ok) => navigator.clipboard.writeText(txt).then(() => toast(ok)).catch(() => toast('Não consegui copiar. Toque e segure para copiar.'));
+$('#copyImgs').onclick = () => {
+  const P2 = ST.prompts.filter(Boolean);
+  copyText(`Crie ${P2.length} imagens fotorrealistas no formato vertical 9:16, uma de cada vez, na ordem, sem nenhum texto escrito nas imagens. Mantenha os mesmos personagens em todas: ${$('#autoChars').value}.\n\n` + P2.map((x, i) => (i+1) + '. ' + x).join('\n\n'), 'Pedido copiado: cole no ChatGPT');
+};
+$('#copyNarr').onclick = () => copyText(lines().join('\n\n'), 'Texto copiado');
 
 /* ---------- sound effects panel ---------- */
 function renderSfxList(){
@@ -1438,6 +1611,7 @@ async function restore(){
   }
   if (F.narr){ const r = await DB.get(F.narr); if (r) await setNarration(r.blob, r.name, F.narr, false); any = true; }
   if (F.music){ const r = await DB.get(F.music); if (r) await setMusic(r.blob, r.name, F.music); }
+  else if (ST.genMusic){ try { MUSIC = {buffer: await genMusic(), name:'Trilha emocional (gerada)', id:null}; musicUI(); } catch(e){} }
   if (F.ov){ const r = await DB.get(F.ov); if (r) await setOverlay(r.blob, F.ov); }
   for (const x of (F.sfx||[])){ const r = await DB.get(x.id); if (r) await addCustomSfx(r.blob, x.name, x.id); }
   return any;
