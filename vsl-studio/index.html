@@ -141,6 +141,12 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
 .tile[aria-pressed=true]{border-color:var(--accent)}
 .tile .num{position:absolute;top:4px;right:4px;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:#fff;font:800 12px var(--body);display:grid;place-items:center;padding:0 5px}
 .tile .vt{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.7);color:#fff;font:800 10px var(--body);border-radius:6px;padding:1px 5px}
+.scr{display:flex;flex-direction:column;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px}
+.scr p{margin:0;font:800 14px/1.35 var(--display);text-transform:uppercase}
+.scr p:first-child{color:var(--accent);font-size:15px}
+.scr p.safe{color:var(--mute);font:600 12.5px var(--body);text-transform:none}
+.scrnav{display:flex;gap:8px;align-items:center}
+.scrnav .count{flex:1;text-align:center;color:var(--mute);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
 .toast{position:fixed;z-index:40;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);color:var(--fg);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:reduce){.progress i{transition:none}}
 </style>
@@ -210,6 +216,25 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
       <p class="hint"><b>2. Voz.</b> Copie o texto, gere a voz no app que você usa (ElevenLabs, CapCut) ou grave lendo, e envie na aba Áudio. A legenda se encaixa sozinha.</p>
       <button class="btn" id="copyNarr">Copiar texto da narração</button>
     </div>
+  </section>
+
+  <!-- 1 ROTEIRO: roteiros prontos -->
+  <section class="card" data-panel="roteiro" id="libScripts">
+    <h2>📚 Roteiros prontos por assunto</h2>
+    <p class="hint">Escolha o assunto e toque em 🔄 para ver outro texto. São 50 roteiros diferentes em cada assunto.</p>
+    <div class="cats" id="scrCats"></div>
+    <div class="scr" id="scrBox" aria-live="polite"></div>
+    <div class="scrnav">
+      <button class="btn icon" id="scrPrev" aria-label="Texto anterior">←</button>
+      <span class="count" id="scrCount"></span>
+      <button class="btn primary" id="scrNext" aria-label="Outro texto">🔄 Outro texto</button>
+    </div>
+    <div class="row">
+      <button class="btn go grow" id="scrUse">Usar este roteiro</button>
+      <button class="btn grow" id="scrCopy">Copiar</button>
+    </div>
+    <button class="btn" id="scrAI" hidden>✨ Criar mais 5 com IA neste assunto</button>
+    <p class="hint" id="scrNote"></p>
   </section>
 
   <!-- 1 ROTEIRO -->
@@ -1325,6 +1350,122 @@ function insertLine(text){
 }
 renderPhrases();
 
+
+/* ---------- ready-made scripts by topic (50 per topic, built from tested parts) ---------- */
+const BANK = {
+  'Amor': {
+    h:['Seu relacionamento esfriou e você não sabe por quê?','Se ele não te olha mais do mesmo jeito, assiste isso.','Você sente que ama mais do que é amada?','Para de rolar: esse recado é sobre o seu coração.','Ninguém te contou isso sobre o amor que você vive.','Se você chegou até aqui, não foi por acaso.','Três sinais de que o seu relacionamento pede socorro.','Ele está do seu lado, mas parece tão longe?','Você ainda acredita que vai ser feliz no amor?','Escuta isso antes de desistir do seu relacionamento.','O carinho sumiu e ficou só a rotina?','Você não está pedindo demais. Você quer ser amada.','Se o seu coração anda apertado, esse vídeo é pra você.','Por que o amor parece tão difícil pra você?'],
+    d:['As conversas viraram silêncio dentro de casa.','Você dorme do lado dele e se sente sozinha.','Cada briga deixa uma marca que não sai.','Você se esforça, mas parece que nunca é suficiente.','O beijo virou obrigação e o abraço sumiu.','Você já chorou escondida no banheiro mais de uma vez.','As mensagens carinhosas pararam de chegar.','Você sente que está carregando a relação sozinha.','O medo de perder ele não te deixa em paz.','Você olha fotos antigas e sente saudade de vocês.'],
+    c:['Muitas vezes, existem sinais que você não está percebendo.','O problema pode não estar em você, nem nele.','Tem algo escondido afastando vocês aos poucos.','Existe uma energia pesada travando esse amor.','O que ninguém te contou pode mudar tudo.','A resposta está mais perto do que você imagina.','Às vezes o amor não acabou, só ficou bloqueado.','Existe um motivo para tudo ter mudado de repente.','Pequenos detalhes estão dizendo muito sobre vocês.','Nem tudo o que você sente é coisa da sua cabeça.'],
+    p:['Eu posso te ajudar a entender o que está acontecendo.','Você merece clareza e paz no coração.','Existe um caminho, e eu te mostro o primeiro passo.','A partir de hoje, você pode enxergar a verdade.','Você vai entender o que está por trás dessa distância.','Chega de viver na dúvida e no medo.','Dá para reacender o que parecia perdido.','Você vai saber o que fazer daqui pra frente.'],
+    u:['Não deixa pra amanhã o que pode mudar hoje.','Quanto mais você espera, maior fica a distância.','Se você sentiu que é pra você, é um sinal.','Estou atendendo poucas pessoas essa semana.','Cada dia de silêncio pesa mais no coração.','Não espera chegar ao ponto de não ter volta.'],
+    a:['Me chama agora no WhatsApp.','Toca no botão e me manda um oi no WhatsApp.','Me chama no WhatsApp que eu te explico tudo.','Me manda a palavra AMOR no WhatsApp.','Clica aqui embaixo e fala comigo agora.']
+  },
+  'Traição': {
+    h:['Você desconfia que está sendo traída?','Ele esconde o celular quando você chega perto?','Se ele mudou de repente, presta atenção nisso.','Cinco sinais de traição que quase ninguém percebe.','Sua intuição está gritando e você está ignorando?','Ele chega tarde e sempre tem uma desculpa?','Ninguém vai te contar, mas os sinais estão aí.','Você sente que tem outra pessoa na história?','Ele trocou a senha do celular do nada?','Para de rolar: isso é pra quem vive com a dúvida.','Se o coração aperta quando ele sai, escuta isso.','Você não está louca. Tem algo errado mesmo.','A desconfiança está tirando o seu sono?','Ele ficou carinhoso demais de repente?'],
+    d:['Você olha as redes dele e se sente culpada depois.','Cada mensagem que ele recebe te deixa em alerta.','Você pergunta e ele diz que é coisa da sua cabeça.','A dúvida está acabando com a sua paz.','Você não consegue mais confiar como antes.','Ele vive distraído, sempre com a cabeça longe.','As desculpas não fecham, mas você quer acreditar.','Você se sente trocada e não sabe por quem.','O medo da verdade te paralisa todos os dias.','Você se olha no espelho e se pergunta onde errou.'],
+    c:['Os sinais costumam aparecer nos detalhes do dia a dia.','O comportamento dele já está te contando muita coisa.','Existe algo escondido que ele não quer que você saiba.','A sua intuição raramente erra nessas horas.','Tem uma terceira energia entrando nessa relação.','O que ele esconde pode estar mais perto do que parece.','Mudanças de rotina sem explicação dizem muito.','Nem toda distância é cansaço do trabalho.','O silêncio dele também é uma resposta.','Às vezes a verdade aparece quando você para de procurar.'],
+    p:['Eu posso te ajudar a enxergar o que está acontecendo.','Você merece saber a verdade, seja ela qual for.','Você vai entender se essa desconfiança tem fundamento.','Chega de viver no escuro.','A partir de hoje, você pode ter clareza.','Você vai saber o próximo passo com a cabeça no lugar.','Dá para sair da dúvida sem perder a sua paz.','Você vai recuperar o controle da sua vida amorosa.'],
+    u:['Não deixa a dúvida destruir mais um dia seu.','Quanto antes você souber, menos você sofre.','Se você chegou até aqui, é porque precisa saber.','Estou atendendo poucas pessoas essa semana.','A verdade não espera, e você também não deveria.','Não espera ser a última a saber.'],
+    a:['Me chama agora no WhatsApp.','Me chama no WhatsApp e conta o que está acontecendo.','Toca no botão e fala comigo no WhatsApp.','Me manda a palavra VERDADE no WhatsApp.','Clica aqui embaixo e fala comigo agora.']
+  },
+  'Reconquista': {
+    h:['Você ainda pensa nessa pessoa todos os dias?','Terminou, mas o sentimento não foi embora?','Se você quer o seu amor de volta, escuta isso.','Ele foi embora e levou a sua paz junto?','Você sente que essa história ainda não acabou?','Três erros que afastam o ex de vez.','Ele te bloqueou, mas ainda olha seus stories?','Para de mandar mensagem antes de ver isso.','O fim doeu, mas o amor continua aí?','Você não consegue seguir em frente, não é?','Se ele voltasse hoje, você aceitaria?','A saudade está mais forte do que o orgulho?','Ninguém te contou o que realmente afasta um ex.','Ele está com outra e você ainda espera por ele?'],
+    d:['Você relê as conversas antigas antes de dormir.','Cada música lembra vocês dois.','Você já mandou mensagem e se arrependeu depois.','Os amigos dizem para esquecer, mas você não consegue.','Você vê ele seguindo a vida e sente o chão sumir.','A saudade aperta mais à noite.','Você se pergunta todo dia onde foi que errou.','Você tenta se distrair, mas a cabeça sempre volta nele.','Ver outra pessoa do lado dele te machuca.','Você sente que parte de você foi junto.'],
+    c:['Muita gente afasta o ex sem perceber, com pequenas atitudes.','Ainda existe uma ligação entre vocês dois.','O que afastou vocês pode não ser o que você imagina.','Tem algo travando a volta dessa história.','Às vezes o fim é só uma pausa mal resolvida.','Existem caminhos que você ainda não tentou.','O jeito como você reage agora muda tudo.','Nem todo término é definitivo.','Ele também pode estar sentindo a sua falta.','Existe um momento certo para cada passo.'],
+    p:['Eu vou te mostrar o primeiro passo.','Você vai entender o que realmente afastou vocês.','Dá para agir sem se humilhar e sem implorar.','Você vai saber se ainda existe chance.','A partir de hoje, você para de agir no desespero.','Você merece clareza para decidir o seu caminho.','Eu posso te ajudar a enxergar essa história de outro jeito.','Você vai recuperar a sua força, com ou sem ele.'],
+    u:['Quanto mais tempo passa, mais difícil fica.','Não deixa pra amanhã.','Se esse vídeo chegou até você, é um sinal.','Estou com poucas vagas essa semana.','Cada dia sem agir é um dia a mais de distância.','Não espera ele esquecer de vez.'],
+    a:['Me chama agora no WhatsApp.','Me chama no WhatsApp e me conta a sua história.','Toca no botão e fala comigo agora.','Me manda a palavra VOLTA no WhatsApp.','Clica aqui embaixo e me chama.']
+  },
+  'Saúde': {
+    safe:'Sempre junto com o acompanhamento do seu médico.',
+    h:['Você acorda cansada mesmo depois de dormir?','Se a sua energia sumiu, presta atenção nisso.','Você tenta emagrecer e o corpo não responde?','Três hábitos que estão roubando a sua disposição.','A ansiedade está tomando conta do seu dia?','Você vive inchada e não sabe por quê?','Para de rolar: isso é sobre o seu corpo.','Você sente que envelheceu dez anos em um?','Dorme mal e acorda pior?','Você cuida de todo mundo, menos de você?','O seu corpo está te dando sinais todos os dias.','Você já tentou de tudo e nada funciona?','Se o espelho anda te incomodando, escuta isso.','Ninguém fala disso, mas pode ser o que te falta.'],
+    d:['Você chega no fim do dia sem forças para nada.','O café não dá mais conta do seu cansaço.','Você começa a dieta na segunda e desiste na quarta.','A roupa aperta e a autoestima vai junto.','A cabeça não desliga na hora de dormir.','Você sente o corpo pesado o dia inteiro.','O mau humor virou rotina.','Você se olha no espelho e não se reconhece.','Pequenas tarefas viraram um grande esforço.','Você deixa a sua saúde sempre para depois.'],
+    c:['Muitas vezes o problema está em hábitos simples do dia a dia.','O seu corpo está pedindo outra coisa, não mais esforço.','Pequenos ajustes podem fazer uma grande diferença.','O que você come à noite pode estar te atrapalhando.','Sono, estresse e alimentação andam juntos.','Nem sempre é falta de força de vontade.','Existe uma rotina mais leve que cabe no seu dia.','O cansaço constante merece atenção.','Você pode estar ignorando um sinal importante.','Quem cuida de si primeiro cuida melhor de todos.'],
+    p:['Eu posso te mostrar um caminho mais leve.','Você vai entender melhor o que o seu corpo está pedindo.','Dá para buscar mais disposição sem sofrimento.','Você merece se sentir bem na sua própria pele.','A partir de hoje, você pode começar diferente.','Você vai ter um passo a passo simples para seguir.','Chega de tentar tudo sozinha.','Você vai cuidar de você com orientação.'],
+    u:['Não deixa para a próxima segunda.','O melhor momento para começar é agora.','Se você se identificou, esse é o sinal.','Tenho poucas vagas de acompanhamento essa semana.','Cada dia adiado é um dia a menos de bem-estar.','Comece pequeno, mas comece hoje.'],
+    a:['Me chama agora no WhatsApp.','Me chama no WhatsApp que eu te explico.','Toca no botão e fala comigo.','Me manda a palavra SAÚDE no WhatsApp.','Clica aqui embaixo e começa hoje.']
+  },
+  'Doenças': {
+    safe:'Isso não substitui o seu médico: continue o seu tratamento.',
+    h:['Você convive com dor todos os dias?','A dor nas costas não te deixa em paz?','Se a pressão vive alta, presta atenção nisso.','Você tem diabetes e se sente perdida?','Dor nas juntas está limitando a sua vida?','Você já se acostumou a sentir dor?','Três hábitos que podem piorar dores no corpo.','Acorda travada e leva horas para melhorar?','Para de rolar se você vive com dor de cabeça.','A enxaqueca está roubando os seus dias?','Você tem medo do resultado dos seus exames?','Sente que só o remédio não está dando conta?','Ninguém te explicou isso sobre a sua condição.','Você deixa de viver por causa da dor?'],
+    d:['Você deixa de sair por causa da dor.','Subir uma escada virou um sacrifício.','Você acorda cansada de tanto dormir mal.','A preocupação com a saúde não sai da sua cabeça.','Você sente que ninguém entende o que você passa.','Cada consulta parece trazer mais dúvidas.','Você tem medo de piorar com o tempo.','Brincar com os filhos ou netos ficou difícil.','Você se sente presa ao próprio corpo.','A dor muda até o seu humor.'],
+    c:['Hábitos simples podem influenciar como você se sente.','Muita gente não sabe o que piora o próprio quadro.','Informação certa faz diferença no dia a dia.','Alimentação, sono e movimento contam muito.','Pequenas mudanças podem trazer mais conforto.','Entender a sua condição tira muito do medo.','Existem cuidados que quase ninguém comenta.','Você não precisa enfrentar isso sem informação.','O acompanhamento certo muda a forma de viver com isso.','O seu corpo responde ao cuidado de todo dia.'],
+    p:['Eu posso te ajudar a entender melhor o que você sente.','Você vai conhecer cuidados para ter mais qualidade de vida.','Dá para viver com mais conforto e menos medo.','Você merece viver com mais leveza.','Você vai ter orientações simples para o seu dia a dia.','Chega de enfrentar isso sozinha.','A partir de hoje, você pode cuidar melhor de você.','Você vai sair da conversa com mais clareza.'],
+    u:['Não espera a dor piorar para se cuidar.','O cuidado começa hoje.','Se você se identificou, esse vídeo é pra você.','Tenho poucos horários livres essa semana.','Quanto antes você se informar, melhor.','A sua qualidade de vida não pode esperar.'],
+    a:['Me chama agora no WhatsApp.','Me chama no WhatsApp para conversar.','Toca no botão e tira as suas dúvidas comigo.','Me manda a palavra CUIDADO no WhatsApp.','Clica aqui embaixo e fala comigo.']
+  },
+  'Finanças': {
+    h:['O salário acaba antes do fim do mês?','Você vive no vermelho e não sabe como sair?','Se as dívidas tiram o seu sono, escuta isso.','Três erros que mantêm você sempre sem dinheiro.','Você trabalha muito e o dinheiro nunca sobra?','Para de rolar se o seu nome está sujo.','Você tem vergonha de olhar o extrato?','Ninguém te ensinou a lidar com dinheiro, né?','O cartão de crédito virou uma bola de neve?','Você quer uma renda extra mas não sabe por onde começar?','Parece que o dinheiro foge da sua mão?','Você ajuda todo mundo e fica sem nada?','Se você está cansada de viver apertada, assiste isso.','Por que algumas pessoas conseguem guardar dinheiro e você não?'],
+    d:['Você tem medo de atender o telefone por causa das cobranças.','Cada boleto que chega aperta o peito.','Você deixa de comprar coisas simples para os seus filhos.','O dinheiro vira motivo de briga em casa.','Você paga uma conta e já aparece outra.','Você se sente presa num ciclo sem fim.','Os juros comem tudo o que você ganha.','Você vive pedindo emprestado e se sente mal.','Você não consegue fazer planos para o futuro.','A ansiedade com dinheiro não te deixa dormir.'],
+    c:['O problema nem sempre é quanto você ganha.','Existem vazamentos de dinheiro que quase ninguém percebe.','Um método simples de organização muda muita coisa.','Muitas dívidas podem ser renegociadas melhor do que você imagina.','Pequenos hábitos decidem se o dinheiro sobra ou falta.','Dá para começar uma renda extra com o que você já sabe.','Ninguém ensina isso na escola.','Existe um bloqueio que trava a sua vida financeira.','O primeiro passo é mais simples do que parece.','Organização vem antes de prosperidade.'],
+    p:['Eu posso te mostrar um passo a passo para se organizar.','Você vai entender para onde o seu dinheiro está indo.','Dá para sair do aperto com um plano realista.','Você merece ter paz quando o assunto é dinheiro.','A partir de hoje, você pode mudar a sua relação com o dinheiro.','Você vai saber por onde começar.','Chega de viver contando moedas.','Você vai ter clareza para tomar as próximas decisões.'],
+    u:['Cada mês sem plano é mais juros na conta.','Não deixa para o mês que vem.','Se você se identificou, é hora de agir.','Estou com poucas vagas essa semana.','Quanto antes você começar, mais rápido respira.','O próximo boleto já está chegando.'],
+    a:['Me chama agora no WhatsApp.','Me chama no WhatsApp que eu te explico.','Toca no botão e fala comigo agora.','Me manda a palavra DINHEIRO no WhatsApp.','Clica aqui embaixo e começa hoje.']
+  }
+};
+const EXTRA_H = {
+  'Amor':['Você sente que o amor de vocês virou rotina?','Ele não te elogia mais como antes?','Quando foi a última vez que ele te surpreendeu?','Se você se sente invisível pra ele, assiste até o fim.','O seu relacionamento ainda tem jeito?','Você dá tudo e recebe migalhas?','Esse vídeo é pra quem ama, mas está cansada.','Por que ele mudou tanto com você?','Você tem medo de que ele não te ame mais?','Se o amor esfriou, existe um motivo.','Você quer de volta o homem por quem se apaixonou?'],
+  'Traição':['Ele apaga as conversas antes de dormir?','Você achou algo estranho e não para de pensar nisso?','Ele começou a se arrumar mais do que antes?','Será que é só impressão sua?','Ele muda de tela quando você chega perto?','Se ele te acusa de ciúme o tempo todo, presta atenção.','Você sente que está sendo enganada?','O perfume, o horário, as desculpas: tudo mudou?','Ele anda frio com você, mas animado no celular?','Você precisa saber a verdade antes de enlouquecer?','Esse vídeo não apareceu pra você à toa.'],
+  'Reconquista':['Você daria tudo por mais uma chance?','Ele disse que acabou, mas você não acredita?','Faz meses e você ainda chora por ele?','Você quer reconquistar, mas tem medo de piorar?','Ele vê os seus stories todos os dias?','O orgulho separou vocês dois?','Ainda dá tempo de reverter esse término?','Você sente que ele ainda pensa em você?','Se você ainda guarda as coisas dele, escuta isso.','Para de implorar e vê isso primeiro.','Você quer entender se ainda existe amor ali?'],
+  'Saúde':['Por que você vive sem energia?','O seu sono não descansa mais?','Você sente que o seu corpo travou?','Dez minutos por dia podem mudar como você se sente?','Você vive com a barriga estufada?','A balança não sai do lugar, por quê?','Você sente fome o tempo todo?','O estresse está aparecendo no seu corpo?','Se você se arrasta no fim do dia, escuta isso.','Você quer voltar a se sentir disposta?','Para tudo e escuta o que o seu corpo está dizendo.'],
+  'Doenças':['Você toma remédio e ainda sente dor?','A dor no joelho está te impedindo de andar?','Você sente o corpo inflamado e pesado?','A glicose não fica controlada de jeito nenhum?','Você sente formigamento nas mãos e nos pés?','Se a dor piora à noite, presta atenção nisso.','Você tem medo de depender dos outros por causa da dor?','O cansaço vem junto com a dor?','Você sente que perdeu a liberdade por causa da saúde?','Isso é pra quem convive com dor todos os dias.','Você quer entender melhor o que acontece com o seu corpo?'],
+  'Finanças':['Você sente vergonha de dizer que está endividada?','O seu dinheiro some e você nem sabe para onde?','Você já pensou em desistir de se organizar?','A conta de luz chegou e o desespero também?','Você quer limpar o seu nome?','Se você vive apagando incêndio com dinheiro, escuta isso.','O empréstimo resolveu um mês e piorou o resto?','Você quer ter dinheiro guardado para emergências?','Por que você sempre fica sem dinheiro no dia 20?','Você quer uma renda extra trabalhando de casa?','Você sente que trabalha só para pagar dívidas?']
+};
+Object.keys(EXTRA_H).forEach(k => BANK[k].h.push(...EXTRA_H[k]));
+const SCR_NOTES = {'Saúde':'Anúncios de saúde são revisados com mais rigor: não prometa cura nem resultado garantido.', 'Doenças':'Anúncios sobre doenças são revisados com mais rigor: não prometa cura e não sugira trocar o tratamento médico.', 'Finanças':'Anúncios sobre dinheiro são revisados com mais rigor: não prometa ganho garantido.'};
+const SCR_CACHE = {};
+function scriptsFor(cat){
+  if (SCR_CACHE[cat]) return SCR_CACHE[cat];
+  const B = BANK[cat], out = [], seen = new Set();
+  for (let n = 0, guard = 0; out.length < 50 && guard < 500; n++, guard++){
+    const T = n % 3, h = (n*7) % B.h.length, d1 = (n*7 + 1) % B.d.length, d2 = (d1 + 3 + (n % 4)) % B.d.length;
+    const c1 = (n*3 + 2) % B.c.length, c2 = (c1 + 1 + (n % 5)) % B.c.length, p1 = (n*5) % B.p.length, p2 = (p1 + 3) % B.p.length;
+    const u = (n*7 + Math.floor(n/6)) % B.u.length, a = (n + Math.floor(n/5)) % B.a.length;
+    const key = [T,h,d1,d2,c1,c2,p1].join('-'); if (seen.has(key)) continue; seen.add(key);
+    let L;
+    if (T === 0) L = [B.h[h], B.d[d1], B.d[d2], B.c[c1], B.c[c2], B.p[p1], B.u[u]];
+    else if (T === 1) L = [B.h[h], B.d[d1], B.c[c1], B.d[d2], B.p[p1], B.p[p2], B.u[u]];
+    else L = [B.h[h], B.d[d1], B.c[c1], B.c[c2], B.p[p1], B.u[u]];
+    if (B.safe) L.push(B.safe);
+    L.push(B.a[a]); out.push(L);
+  }
+  return (SCR_CACHE[cat] = out);
+}
+let SCR = {cat: 'Amor', i: 0};
+try { const v = JSON.parse(localStorage.getItem('estudio-vsl-scr') || 'null'); if (v && BANK[v.cat]) SCR = v; } catch(e){}
+const scrSave = () => { try { localStorage.setItem('estudio-vsl-scr', JSON.stringify(SCR)); } catch(e){} };
+function renderScr(){
+  const cats = $('#scrCats'); cats.innerHTML = '';
+  Object.keys(BANK).forEach(c => { const b = document.createElement('button'); b.textContent = c; b.setAttribute('aria-pressed', c === SCR.cat); b.onclick = () => { SCR = {cat: c, i: 0}; scrSave(); renderScr(); }; cats.appendChild(b); });
+  const list = scriptsFor(SCR.cat); SCR.i = ((SCR.i % list.length) + list.length) % list.length;
+  const L = list[SCR.i], box = $('#scrBox'); box.innerHTML = '';
+  L.forEach(l => { const p = document.createElement('p'); p.textContent = l; if (BANK[SCR.cat].safe === l) p.className = 'safe'; box.appendChild(p); });
+  $('#scrCount').textContent = `Texto ${SCR.i + 1} de ${list.length}`;
+  $('#scrNote').textContent = SCR_NOTES[SCR.cat] || '';
+}
+$('#scrNext').onclick = () => { SCR.i++; scrSave(); renderScr(); };
+$('#scrPrev').onclick = () => { SCR.i--; scrSave(); renderScr(); };
+$('#scrCopy').onclick = () => copyText(scriptsFor(SCR.cat)[SCR.i].join('\n'), 'Roteiro copiado');
+$('#scrUse').onclick = () => {
+  snapshot('usar roteiro pronto'); const L = scriptsFor(SCR.cat)[SCR.i].slice();
+  setLines(L); ST.prompts = []; ST.moods = []; ST.anchors = null; ST.hold = [];
+  suggestSfx(); suggestMotion(); save(); P.t = 0; redraw(); renderScenes();
+  toast('Roteiro aplicado. Veja as cenas e coloque as fotos'); window.scrollTo({top: 0, behavior: 'smooth'});
+};
+$('#scrAI').onclick = async () => {
+  if (!SAMPLE) return; const btn = $('#scrAI'); btn.disabled = true; $('#scrNote').textContent = 'Escrevendo 5 roteiros novos…';
+  try {
+    const ex = scriptsFor(SCR.cat)[SCR.i].join('\n');
+    const r = await SAMPLE.json(`Escreva 5 roteiros curtos de VSL (vídeo vertical para Instagram/TikTok) em português do Brasil sobre o assunto "${SCR.cat}". Cada roteiro tem de 7 a 9 linhas; cada linha é uma cena de 4 a 11 palavras, falando com "você", linguagem simples e falada. Estrutura: gancho forte, dor, curiosidade sobre algo escondido, promessa do que a pessoa vai entender, urgência e por último uma chamada para o WhatsApp. Sem emojis. Não prometa cura, resultado garantido nem ganho de dinheiro garantido.${BANK[SCR.cat].safe ? ' Inclua antes da chamada a linha: "' + BANK[SCR.cat].safe + '"' : ''}\nExemplo do tom:\n${ex}\nResponda só JSON: {"roteiros":[["linha","linha"]]}`, {modelTier:'default'});
+    const got = (r && Array.isArray(r.roteiros) ? r.roteiros : []).filter(x => Array.isArray(x) && x.length >= 4).map(x => x.map(String));
+    if (got.length){ const list = scriptsFor(SCR.cat); list.push(...got); SCR.i = list.length - got.length; scrSave(); renderScr(); $('#scrNote').textContent = got.length + ' roteiros novos no fim da lista.'; }
+    else $('#scrNote').textContent = 'A IA não devolveu roteiros. Tente de novo.';
+  } catch(e){ $('#scrNote').textContent = aiErr(e); }
+  btn.disabled = false;
+};
+renderScr();
+
 /* ---------- AI (Claude, when available) ---------- */
 let SAMPLE = null, DL = null;
 (async () => {
@@ -1334,7 +1475,7 @@ let SAMPLE = null, DL = null;
       SAMPLE = s; DL = d;
     }
   } catch(e){}
-  if (SAMPLE){ $('#aiBox').hidden = false; $('#aiPrompts').hidden = false; }
+  if (SAMPLE){ $('#aiBox').hidden = false; $('#aiPrompts').hidden = false; $('#scrAI').hidden = false; }
 })();
 const aiErr = e => (e && e.code === 'not_granted') ? 'A IA foi recusada neste aparelho. Você ainda pode usar o banco de frases.' : (e && e.code === 'rate_limited') ? 'Muitos pedidos seguidos. Espere um minuto e tente de novo.' : 'Não deu para falar com a IA agora. Tente de novo.';
 $('#aiGen').onclick = async () => {
