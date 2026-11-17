@@ -131,7 +131,16 @@ details>summary{cursor:pointer;padding:12px 14px;font:800 13px var(--display);te
 details>summary::after{content:"+";color:var(--accent);font-size:18px}
 details[open]>summary::after{content:"–"}
 details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
-.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);color:var(--fg);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.sheet{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center}
+.sheet-in{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;width:min(100%,560px);max-height:90vh;display:flex;flex-direction:column;gap:10px;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.libgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;overflow-y:auto;min-height:140px;padding:2px}
+.tile{position:relative;border:2px solid transparent;border-radius:10px;overflow:hidden;background:var(--bg);padding:0;cursor:pointer;aspect-ratio:9/16;width:100%}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.tile .lbl{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.88));color:#fff;font:700 10.5px/1.25 var(--body);padding:16px 5px 5px;text-align:left;word-break:break-word}
+.tile[aria-pressed=true]{border-color:var(--accent)}
+.tile .num{position:absolute;top:4px;right:4px;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:#fff;font:800 12px var(--body);display:grid;place-items:center;padding:0 5px}
+.tile .vt{position:absolute;top:4px;left:4px;background:rgba(0,0,0,.7);color:#fff;font:800 10px var(--body);border-radius:6px;padding:1px 5px}
+.toast{position:fixed;z-index:40;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);color:var(--fg);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
 @media (prefers-reduced-motion:reduce){.progress i{transition:none}}
 </style>
 
@@ -146,6 +155,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <label class="f">Nome do vídeo<input type="text" id="newName" placeholder="Ex.: Sinais escondidos, versão 2" maxlength="60"></label>
     <button class="btn primary wide" id="createBtn">Criar e começar a editar</button>
   </div>
+  <button class="btn wide" id="homeLib">🖼 Minha galeria de fotos</button>
   <h2>Seus projetos</h2>
   <p class="hint" id="cloudState">Verificando a nuvem…</p>
   <div class="plist" id="projList"></div>
@@ -247,6 +257,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <p class="hint">Edite o texto, mude a ordem e coloque <b>quantas fotos ou vídeos quiser em cada cena</b>: o tempo da cena é dividido entre eles. As fotos vêm da sua galeria ou da pasta Arquivos. <b>Toque numa foto</b> para mudar o enquadramento (centro, topo, baixo).</p>
     <div class="row">
       <button class="btn primary grow" id="addMany">Encher as cenas vazias (várias fotos)</button>
+      <button class="btn grow" id="fillLib">🖼 Encher com a galeria</button>
     </div>
     <details id="promptBox" open>
       <summary>Prompts para criar as imagens</summary>
@@ -458,6 +469,22 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     </div>
   </section>
  </div>
+</div>
+<div class="sheet" id="libSheet" hidden role="dialog" aria-modal="true" aria-label="Minha galeria">
+  <div class="sheet-in">
+    <div class="row"><h2 class="grow">Minha galeria</h2><button class="btn small" id="libClose">Fechar</button></div>
+    <div class="seg" id="libModeSeg" style="--n:2"><button data-v="pick">Escolher</button><button data-v="manage">Organizar</button></div>
+    <input type="text" id="libSearch" placeholder="Buscar: chorando, casal, celular, triste…" aria-label="Buscar na galeria">
+    <p class="hint" id="libHint"></p>
+    <div class="libgrid" id="libGrid"></div>
+    <p class="empty" id="libEmpty" hidden>A galeria está vazia. Toda foto que você coloca numa cena entra aqui sozinha. Você também pode enviar fotos direto para a galeria em Organizar.</p>
+    <div id="libPickBar" class="row"><span class="pill" id="libCount">0 selecionadas</span><button class="btn primary grow" id="libUse" disabled>Adicionar</button></div>
+    <div id="libManageBar" hidden class="card inner">
+      <div id="libEdit" hidden class="row"><input type="text" id="libTagInp" placeholder="Etiqueta (ex.: casal brigando)" aria-label="Etiqueta da foto" style="flex:1"><button class="btn small primary" id="libTagSave">Salvar</button><button class="btn small danger" id="libDel">Tirar da galeria</button></div>
+      <div class="row"><input type="text" id="libNewTag" placeholder="Etiqueta para as fotos novas" aria-label="Etiqueta para as fotos novas" style="flex:1"><button class="btn small" id="libUpBtn">+ Enviar fotos</button></div>
+      <input type="file" id="libFile" accept="image/*,video/*" multiple hidden>
+    </div>
+  </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -1356,7 +1383,7 @@ async function makeMedia(blob, type, name, id){
 }
 async function addFiles(files, sceneIdx){
   const out = [];
-  for (const f of files){ const id = await storeFile(f); out.push(await makeMedia(f, f.type, f.name, id)); }
+  for (const f of files){ const id = await storeFile(f); libAdd(id, (f.type||'').startsWith('video') ? 'vid' : 'img', f.name, sceneIdx != null ? sceneTag(sceneIdx) : ''); out.push(await makeMedia(f, f.type, f.name, id)); }
   return out;
 }
 const FY = [[0.4,'centro'],[0.1,'topo'],[0.85,'baixo']];
@@ -1391,6 +1418,7 @@ function renderScenes(){
     const add = document.createElement('button'); add.className = 'add'; add.textContent = items.length ? '+ mais' : '+ fotos';
     add.onclick = () => { $('#fileOne').dataset.idx = i; $('#fileOne').click(); };
     th.appendChild(add);
+    const gl = document.createElement('button'); gl.className = 'add'; gl.textContent = '🖼 galeria'; gl.onclick = () => openLib({mode: 'pick', scene: i}); th.appendChild(gl);
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Efeito sonoro da cena '+(i+1));
     sfxOptions().forEach(([k, l]) => { const o = document.createElement('option'); o.value = k; o.textContent = (k ? '🔊 ' : '') + l; sel.appendChild(o); });
     sel.value = (ST.sfx && ST.sfx[i]) || '';
@@ -1434,7 +1462,7 @@ function deleteScene(i){
 $('#addScene').onclick = () => { snapshot('nova cena'); const L = lines(); const pos = Math.max(0, L.length-1); spliceScenes(pos, 0, 1); L.splice(pos, 0, 'Nova cena: escreva a frase aqui'); setLines(L); persistMedia(); redraw(); renderScenes(); };
 $('#fileOne').onchange = async e => {
   const files = [...e.target.files]; e.target.value=''; if (!files.length) return; const i = +e.target.dataset.idx; snapshot('adicionar fotos');
-  toast('Carregando…'); const ms = await addFiles(files);
+  toast('Carregando…'); const ms = await addFiles(files, i);
   while (MEDIA.length <= i) MEDIA.push([]); MEDIA[i] = (MEDIA[i]||[]).concat(ms); persistMedia();
   renderScenes(); redraw(); if (TM.scenes[i]) seek(TM.scenes[i].start + 0.4); toast(ms.length + ' adicionada(s) na cena ' + (i+1));
 };
@@ -1446,7 +1474,7 @@ $('#fileMany').onchange = async e => {
   const ms = await addFiles(files);
   let empties = []; for (let i=0;i<n;i++) if (!(MEDIA[i]||[]).length) empties.push(i);
   if (!empties.length) empties = [...Array(n).keys()];
-  ms.forEach((m, k) => { const i = empties[k % empties.length]; MEDIA[i] = (MEDIA[i]||[]).concat(m); });
+  ms.forEach((m, k) => { const i = empties[k % empties.length]; MEDIA[i] = (MEDIA[i]||[]).concat(m); libTag(m.id, sceneTag(i)); });
   persistMedia(); renderScenes(); redraw();
   toast(ms.length > empties.length ? 'Sobraram fotos: entraram como 2ª foto nas cenas' : 'Fotos distribuídas nas cenas');
 };
@@ -1952,6 +1980,7 @@ async function gc(){
       const raw = lsGet(pkey(m.id)); if (!raw) return; const F = (JSON.parse(raw).files) || {};
       (F.scenes||[]).forEach(a => (a||[]).forEach(id => keep.add(id))); ['narr','music','ov'].forEach(k => F[k] && keep.add(F[k])); (F.sfx||[]).forEach(x => keep.add(x.id));
     }
+    libRead().items.forEach(x => { keep.add(x.id); keep.add('th:' + x.id); });
     const ks = await DB.keys(); (ks||[]).forEach(k => { if (!keep.has(k)) DB.del(k); });
   } catch(e){}
 }
@@ -1962,6 +1991,117 @@ $('#projTitle').onchange = () => { const v = $('#projTitle').value.trim(); if (v
 window.addEventListener('storage', e => { if (e.key === PKEY && !$('#home').hidden) renderHome(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#home').hidden){ renderHome(); cloudPull().then(n => { if (n) renderHome(); }); } });
 $('#projTitle').onkeydown = e => { if (e.key === 'Enter') $('#projTitle').blur(); };
+
+/* ---------- my gallery: photos and videos reused across projects ---------- */
+const LKEY = 'estudio-vsl-library';
+const libRead = () => { try { const v = JSON.parse(lsGet(LKEY) || '{}') || {}; return {items: Array.isArray(v.items) ? v.items : [], removed: Array.isArray(v.removed) ? v.removed : []}; } catch(e){ return {items: [], removed: []}; } };
+let libT;
+function libWrite(fn){ const L = libRead(); fn(L); lsSet(LKEY, JSON.stringify(L)); clearTimeout(libT); libT = setTimeout(() => { if (CLOUD && CLOUD.lib) CLOUD.lib.set(libRead()).catch(() => {}); }, 1500); return L; }
+function libAdd(id, type, name, tag){ libWrite(L => { if (L.items.some(x => x.id === id) || L.removed.includes(id)) return; L.items.push({id, type: type || 'img', name: name || '', tag: tag || '', added: Date.now()}); }); thumbQueue(id); }
+function libTag(id, tag, force){ libWrite(L => { const it = L.items.find(x => x.id === id); if (it && (force || !it.tag)) it.tag = tag; }); }
+function libRemove(id){ libWrite(L => { L.items = L.items.filter(x => x.id !== id); if (!L.removed.includes(id)) L.removed.push(id); }); DB.del('th:' + id); }
+const MOOD_LBL = {triste:'triste', tenso:'tenso', romantico:'romântico', esperanca:'esperança', misterio:'mistério', urgente:'urgente'};
+function sceneTag(i, lineArr, moodArr){
+  const L = lineArr || lines(); const line = L[i] || '';
+  const words = line.toLowerCase().replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(w => w.length > 3 && !['você','vocês','para','isso','essa','esse','esta','este','pessoa','agora','muitas','vezes','quer','está','algo','sabe','coisa','mais','muito','como','pelo','pela','seus','suas','dela','dele','pode','existe','existem','sente','porque','porquê','entre','quando','ainda','sobre','estão'].includes(w)).slice(0, 3);
+  const md = moodArr ? ((moodArr[i] && MOOD_LBL[moodArr[i]]) || '') : (MOOD_LBL[moodOf(i)] || '');
+  return [md, ...words].filter(Boolean).join(', ');
+}
+const TQ = []; let tBusy = false;
+function thumbQueue(id){ if (!TQ.includes(id)) TQ.push(id); thumbNext(); }
+async function thumbNext(){
+  if (tBusy || !TQ.length) return; tBusy = true; const id = TQ.shift();
+  try {
+    if (!(await DB.get('th:' + id))){
+      const r = await getFile(id);
+      if (r && r.blob){
+        const url = URL.createObjectURL(r.blob); let src, sw, sh;
+        if ((r.type || r.blob.type || '').startsWith('video')){ const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url; await new Promise(res => { v.onloadeddata = res; v.onerror = res; setTimeout(res, 4000); }); try { v.currentTime = Math.min(0.5, (v.duration || 1)/2); await new Promise(res => { v.onseeked = res; setTimeout(res, 1500); }); } catch(e){} src = v; sw = v.videoWidth; sh = v.videoHeight; }
+        else { const im = new Image(); im.src = url; try { await im.decode(); } catch(e){} src = im; sw = im.naturalWidth; sh = im.naturalHeight; }
+        if (sw && sh){ const c = document.createElement('canvas'); c.width = 180; c.height = 320; const g = c.getContext('2d'); const k = Math.max(180/sw, 320/sh); g.drawImage(src, (180 - sw*k)/2, (320 - sh*k)*0.4, sw*k, sh*k); await DB.put('th:' + id, c.toDataURL('image/jpeg', 0.72)); }
+        URL.revokeObjectURL(url);
+      }
+    }
+    const tile = document.querySelector(`.tile[data-id="${id}"] img`); if (tile && !tile.src){ const d = await DB.get('th:' + id); if (d) tile.src = d; }
+  } catch(e){}
+  tBusy = false; if (TQ.length) setTimeout(thumbNext, 50);
+}
+async function libBackfill(){
+  const L = libRead(); const have = new Set([...L.items.map(x => x.id), ...L.removed]);
+  for (const m of readMetas()){
+    let st; try { st = JSON.parse(lsGet(pkey(m.id)) || 'null'); } catch(e){} if (!st || !st.files) continue;
+    const ls = (st.script || '').split('\n').map(x => x.trim()).filter(Boolean);
+    for (let i = 0; i < (st.files.scenes || []).length; i++) for (const id of (st.files.scenes[i] || [])){
+      if (have.has(id)) continue; have.add(id);
+      const r = await DB.get(id); const t = (r && (r.type || (r.blob && r.blob.type))) || (FILEMAP[id] && FILEMAP[id].t) || '';
+      if (!r && !(FILEMAP[id] && FILEMAP[id].a)) continue;
+      libAdd(id, t.startsWith('video') ? 'vid' : 'img', (r && r.name) || '', sceneTag(i, ls, st.moods || []));
+    }
+  }
+}
+let LIBMODE = {mode: 'pick'}, LIBSEL = [], LIBEDIT = null;
+const norm = x => (x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function openLib(mode){
+  LIBMODE = mode; LIBSEL = []; LIBEDIT = null; $('#libSearch').value = '';
+  $('#libModeSeg').hidden = mode.mode === 'manage' && mode.fromHome;
+  renderLib(); $('#libSheet').hidden = false;
+}
+function closeLib(){ $('#libSheet').hidden = true; }
+function renderLib(){
+  const pick = LIBMODE.mode !== 'manage';
+  $$('#libModeSeg button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.v === 'manage') === !pick));
+  $('#libPickBar').hidden = !pick; $('#libManageBar').hidden = pick; $('#libEdit').hidden = !LIBEDIT;
+  $('#libHint').textContent = pick ? (LIBMODE.scene != null ? `Toque nas fotos para colocar na cena ${LIBMODE.scene + 1}, na ordem dos números.` : 'Toque nas fotos na ordem: elas vão para as cenas vazias, uma por cena.') : 'Toque numa foto para trocar a etiqueta ou tirar da galeria. Isso não apaga a foto dos projetos que já usam.';
+  const q = norm($('#libSearch').value.trim());
+  const items = libRead().items.slice().sort((a, b) => b.added - a.added).filter(x => !q || norm(x.tag + ' ' + x.name).includes(q));
+  $('#libEmpty').hidden = !!libRead().items.length;
+  const g = $('#libGrid'); g.innerHTML = '';
+  items.forEach(x => {
+    const b = document.createElement('button'); b.className = 'tile'; b.dataset.id = x.id; b.setAttribute('aria-label', x.tag || x.name || 'foto');
+    const k = LIBSEL.indexOf(x.id); b.setAttribute('aria-pressed', pick ? k >= 0 : LIBEDIT === x.id);
+    const im = document.createElement('img'); im.alt = ''; b.appendChild(im);
+    if (x.type === 'vid'){ const v = document.createElement('span'); v.className = 'vt'; v.textContent = 'vídeo'; b.appendChild(v); }
+    if (pick && k >= 0){ const n = document.createElement('span'); n.className = 'num'; n.textContent = k + 1; b.appendChild(n); }
+    const l = document.createElement('span'); l.className = 'lbl'; l.textContent = x.tag || 'sem etiqueta'; b.appendChild(l);
+    b.onclick = () => {
+      if (pick){ const j = LIBSEL.indexOf(x.id); if (j >= 0) LIBSEL.splice(j, 1); else LIBSEL.push(x.id); }
+      else { LIBEDIT = LIBEDIT === x.id ? null : x.id; $('#libTagInp').value = x.tag || ''; }
+      renderLib();
+    };
+    g.appendChild(b);
+    DB.get('th:' + x.id).then(d => { if (d) im.src = d; else thumbQueue(x.id); });
+  });
+  $('#libCount').textContent = LIBSEL.length + (LIBSEL.length === 1 ? ' selecionada' : ' selecionadas');
+  $('#libUse').disabled = !LIBSEL.length; $('#libUse').textContent = LIBMODE.scene != null ? `Adicionar na cena ${LIBMODE.scene + 1}` : 'Encher as cenas vazias';
+}
+$('#libClose').onclick = closeLib;
+$('#libSheet').onclick = e => { if (e.target === $('#libSheet')) closeLib(); };
+$('#libSearch').oninput = () => renderLib();
+$$('#libModeSeg button').forEach(b => b.onclick = () => { LIBMODE = {...LIBMODE, mode: b.dataset.v}; LIBEDIT = null; renderLib(); });
+$('#libTagSave').onclick = () => { if (!LIBEDIT) return; libTag(LIBEDIT, $('#libTagInp').value.trim(), true); LIBEDIT = null; renderLib(); toast('Etiqueta salva'); };
+$('#libTagInp').onkeydown = e => { if (e.key === 'Enter') $('#libTagSave').click(); };
+let libDelArm = 0;
+$('#libDel').onclick = () => { if (!LIBEDIT) return; if (Date.now() - libDelArm > 4000){ libDelArm = Date.now(); $('#libDel').textContent = 'Toque de novo'; setTimeout(() => $('#libDel').textContent = 'Tirar da galeria', 4000); return; } libRemove(LIBEDIT); LIBEDIT = null; $('#libDel').textContent = 'Tirar da galeria'; renderLib(); toast('Tirada da galeria'); };
+$('#libUpBtn').onclick = () => $('#libFile').click();
+$('#libFile').onchange = async e => {
+  const files = [...e.target.files]; e.target.value = ''; if (!files.length) return; const tag = $('#libNewTag').value.trim();
+  toast('Enviando ' + files.length + ' para a galeria…');
+  for (const f of files){ const id = await storeFile(f); libAdd(id, (f.type || '').startsWith('video') ? 'vid' : 'img', f.name, tag); }
+  renderLib(); toast('Adicionadas à galeria');
+};
+$('#libUse').onclick = async () => {
+  const ids = LIBSEL.slice(); if (!ids.length) return; const target = LIBMODE.scene; closeLib();
+  snapshot('fotos da galeria'); toast('Carregando…');
+  const ms = []; for (const id of ids){ const r = await getFile(id); if (r) ms.push(await makeMedia(r.blob, r.type, r.name, id)); }
+  if (!ms.length){ toast('Não consegui abrir essas fotos'); return; }
+  const n = lines().length; while (MEDIA.length < n) MEDIA.push([]);
+  if (target != null){ MEDIA[target] = (MEDIA[target] || []).concat(ms); }
+  else { let empties = []; for (let i = 0; i < n; i++) if (!(MEDIA[i] || []).length) empties.push(i); if (!empties.length) empties = [...Array(n).keys()]; ms.forEach((m, k) => { const i = empties[k % empties.length]; MEDIA[i] = (MEDIA[i] || []).concat(m); }); }
+  persistMedia(); renderScenes(); redraw(); if (target != null && TM.scenes[target]) seek(TM.scenes[target].start + 0.4);
+  toast(ms.length + (ms.length === 1 ? ' foto adicionada' : ' fotos adicionadas'));
+};
+$('#fillLib').onclick = () => openLib({mode: 'pick'});
+$('#homeLib').onclick = () => openLib({mode: 'manage', fromHome: true});
 
 /* ---------- cloud: projects and files kept in the person's Claude account ---------- */
 let CLOUD = null, FILEMAP = {}, cloudReady = null, cloudChecked = false;
@@ -1979,7 +2119,8 @@ async function initCloud(){
     const [db, user, assets] = await Promise.all([window.claude.use('db'), window.claude.use('user'), window.claude.use('assets')]);
     if (!db || !user) return; const uidv = await user.id(); if (!uidv) return;
     const base = db.doc('data/users/' + uidv + '/vsl');
-    CLOUD = {db, assets, col: base.collection('projects'), files: db.doc('data/users/' + uidv + '/vslfiles')};
+    CLOUD = {db, assets, col: base.collection('projects'), files: db.doc('data/users/' + uidv + '/vslfiles'), lib: db.doc('data/users/' + uidv + '/vsllib')};
+    try { const g = await CLOUD.lib.get(); if (g.exists){ const c = g.data() || {}; const L = libRead(); const removed = [...new Set([...(L.removed||[]), ...((c.removed)||[])])]; const map = new Map(); [...(c.items||[]), ...L.items].forEach(x => map.set(x.id, x)); lsSet(LKEY, JSON.stringify({items: [...map.values()].filter(x => !removed.includes(x.id)), removed})); } } catch(e){}
     try { const f = await CLOUD.files.get(); if (f.exists){ const mp = (f.data() || {}).map || {}; FILEMAP = {...mp, ...FILEMAP}; lsSet(FMKEY, JSON.stringify(FILEMAP)); } } catch(e){}
   } catch(e){ CLOUD = null; }
 }
@@ -2046,6 +2187,7 @@ async function getFile(id){
 }
 function backupAllFiles(){
   if (!CLOUD || !CLOUD.assets) return;
+  libRead().items.forEach(x => cloudUpload(x.id));
   readMetas().forEach(m => { try { const F = (JSON.parse(lsGet(pkey(m.id)) || '{}').files) || {}; (F.scenes||[]).forEach(a => (a||[]).forEach(cloudUpload)); ['narr','music','ov'].forEach(k => F[k] && cloudUpload(F[k])); (F.sfx||[]).forEach(x => cloudUpload(x.id)); } catch(e){} });
 }
 
@@ -2069,7 +2211,7 @@ try { navigator.storage && navigator.storage.persist && navigator.storage.persis
 cloudReady = initCloud().then(async () => {
   cloudChecked = true; cloudStateUI();
   const n = await cloudPull(); if (n && !$('#home').hidden){ renderHome(); toast(n === 1 ? '1 projeto trazido da nuvem' : n + ' projetos trazidos da nuvem'); }
-  backupAllFiles(); cloudStateUI();
+  await libBackfill(); backupAllFiles(); cloudStateUI();
 });
 (async () => {
   try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); } catch(e){}
