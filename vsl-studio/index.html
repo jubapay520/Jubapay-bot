@@ -148,6 +148,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <button class="btn primary wide" id="createBtn">Criar e começar a editar</button>
   </div>
   <h2>Seus projetos</h2>
+  <p class="hint" id="cloudState">Verificando a nuvem…</p>
   <div class="plist" id="projList"></div>
   <p class="empty" id="homeEmpty" hidden>Nenhum projeto ainda. Dê um nome acima e toque em Criar.</p>
  </section>
@@ -575,6 +576,7 @@ let lastSaveUI = 0, saveUIT;
 const save = () => {
   if (!CUR) return;
   const ok = lsSet(pkey(CUR), JSON.stringify(ST)) && metaPatch(CUR, {updated: Date.now()});
+  cloudQueue(CUR);
   const el = document.getElementById('saveState'); if (!el) return;
   if (!ok){ el.textContent = '⚠ Não consegui salvar: o armazenamento do navegador está cheio ou bloqueado. Apague projetos antigos.'; el.style.color = 'var(--warn)'; return; }
   clearTimeout(saveUIT); saveUIT = setTimeout(() => { const t = new Date(); el.style.color = ''; el.textContent = '✓ Salvo automaticamente às ' + String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0'); }, 300);
@@ -602,7 +604,7 @@ const DB = (() => {
   };
 })();
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-async function storeFile(file){ const id = uid(); await DB.put(id, {blob: file, type: file.type || '', name: file.name || 'arquivo'}); return id; }
+async function storeFile(file){ const id = uid(); await DB.put(id, {blob: file, type: file.type || '', name: file.name || 'arquivo'}); cloudUpload(id); return id; }
 function persistMedia(){ ST.files.scenes = MEDIA.map(a => (a||[]).map(m => m.id)); save(); }
 
 /* ---------- helpers ---------- */
@@ -1450,7 +1452,7 @@ $('#recBtn').onclick = async () => {
     const st = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true}});
     const chunks = []; MR = new MediaRecorder(st);
     MR.ondataavailable = e => e.data.size && chunks.push(e.data);
-    MR.onstop = async () => { st.getTracks().forEach(t=>t.stop()); MR = null; $('#recBtn').textContent = 'Gravar agora'; $('#recBtn').classList.remove('go'); const b = new Blob(chunks, {type: chunks[0]?.type || 'audio/mp4'}); const id = uid(); await DB.put(id, {blob:b, type:b.type, name:'gravação'}); setNarration(b, 'gravação', id, true); };
+    MR.onstop = async () => { st.getTracks().forEach(t=>t.stop()); MR = null; $('#recBtn').textContent = 'Gravar agora'; $('#recBtn').classList.remove('go'); const b = new Blob(chunks, {type: chunks[0]?.type || 'audio/mp4'}); const id = uid(); await DB.put(id, {blob:b, type:b.type, name:'gravação'}); cloudUpload(id); setNarration(b, 'gravação', id, true); };
     MR.start(); $('#recBtn').textContent = 'Parar gravação'; $('#recBtn').classList.add('go');
     $('#recHint').hidden = false; $('#recHint').textContent = 'Gravando. Leia o roteiro com calma e toque em Parar.';
   } catch(e){
@@ -1805,17 +1807,17 @@ function renderHome(){
     mk('Renomear', '', () => {
       const inp = document.createElement('input'); inp.type = 'text'; inp.value = m.name; inp.maxLength = 60; inp.setAttribute('aria-label', 'Novo nome');
       nm.replaceWith(inp); inp.focus(); inp.select();
-      const done = () => { const v = inp.value.trim(); if (v) metaPatch(m.id, {name: v}); renderHome(); };
+      const done = () => { const v = inp.value.trim(); if (v){ metaPatch(m.id, {name: v}); cloudQueue(m.id, 0); } renderHome(); };
       inp.onblur = done; inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
     });
     mk('Duplicar', '', () => {
       const id = 'p' + uid(); const raw = lsGet(pkey(m.id));
       if (!raw || !lsSet(pkey(id), raw)){ toast('Não consegui duplicar: pouco espaço'); return; }
-      metaWrite(list => list.push({...m, id, name: m.name + ' (cópia)', updated: Date.now()})); renderHome(); toast('Projeto duplicado');
+      metaWrite(list => list.push({...m, id, name: m.name + ' (cópia)', updated: Date.now()})); cloudQueue(id, 0); renderHome(); toast('Projeto duplicado');
     });
     let armed = 0; const del = mk('Apagar', 'danger', () => {
       if (Date.now() - armed > 4000){ armed = Date.now(); del.textContent = 'Toque de novo para apagar'; setTimeout(() => { del.textContent = 'Apagar'; }, 4000); return; }
-      lsDel(pkey(m.id)); metaWrite(list => { const k = list.findIndex(x => x.id === m.id); if (k >= 0) list.splice(k, 1); }); renderHome(); gc(); toast('Projeto apagado');
+      lsDel(pkey(m.id)); metaWrite(list => { const k = list.findIndex(x => x.id === m.id); if (k >= 0) list.splice(k, 1); }); cloudDelete(m.id); renderHome(); gc(); toast('Projeto apagado');
     });
     info.append(nm, meta, acts); card.append(th, info); box.appendChild(card);
   });
@@ -1826,7 +1828,7 @@ function captureThumb(){
     build(); draw(Math.min(TM.total*0.2, 2.5));
     const c = document.createElement('canvas'); c.width = 108; c.height = Math.round(108*cv.height/cv.width);
     c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
-    metaPatch(CUR, {thumb: c.toDataURL('image/jpeg', 0.7), dur: TM.total, scenes: lines().length});
+    metaPatch(CUR, {thumb: c.toDataURL('image/jpeg', 0.7), dur: TM.total, scenes: lines().length}); cloudQueue(CUR);
     draw(P.t);
   } catch(e){}
 }
@@ -1860,7 +1862,7 @@ function createProject(){
   const name = $('#newName').value.trim() || ('Vídeo ' + (METAS.length + 1));
   const id = 'p' + uid();
   if (!lsSet(pkey(id), JSON.stringify(normST(null)))){ toast('Não consegui criar: o navegador bloqueou o armazenamento'); return; }
-  metaWrite(list => list.push({id, name, updated: Date.now()})); $('#newName').value = ''; openProject(id);
+  metaWrite(list => list.push({id, name, updated: Date.now()})); cloudQueue(id, 0); $('#newName').value = ''; openProject(id);
 }
 async function gc(){
   try {
@@ -1875,27 +1877,119 @@ async function gc(){
 $('#createBtn').onclick = createProject;
 $('#newName').onkeydown = e => { if (e.key === 'Enter') createProject(); };
 $('#homeBtn').onclick = goHome;
-$('#projTitle').onchange = () => { const v = $('#projTitle').value.trim(); if (v){ metaPatch(CUR, {name: v}); toast('Nome salvo'); } else { const m = readMetas().find(x => x.id === CUR); if (m) $('#projTitle').value = m.name; } };
+$('#projTitle').onchange = () => { const v = $('#projTitle').value.trim(); if (v){ metaPatch(CUR, {name: v}); cloudQueue(CUR, 0); toast('Nome salvo'); } else { const m = readMetas().find(x => x.id === CUR); if (m) $('#projTitle').value = m.name; } };
 window.addEventListener('storage', e => { if (e.key === PKEY && !$('#home').hidden) renderHome(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#home').hidden) renderHome(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#home').hidden){ renderHome(); cloudPull().then(n => { if (n) renderHome(); }); } });
 $('#projTitle').onkeydown = e => { if (e.key === 'Enter') $('#projTitle').blur(); };
+
+/* ---------- cloud: projects and files kept in the person's Claude account ---------- */
+let CLOUD = null, FILEMAP = {}, cloudReady = null, cloudChecked = false;
+const FMKEY = 'estudio-vsl-filemap';
+try { FILEMAP = JSON.parse(lsGet(FMKEY) || '{}') || {}; } catch(e){ FILEMAP = {}; }
+let cloudErr = '';
+function cloudStateUI(extra){
+  const el = $('#cloudState'); if (!el) return;
+  if (!CLOUD){ el.textContent = cloudChecked ? '⚠ Salvando só neste aparelho. Para guardar na nuvem, abra o app com sua conta Claude conectada.' : 'Verificando a nuvem…'; el.style.color = cloudChecked ? 'var(--warn)' : ''; return; }
+  el.style.color = ''; el.textContent = '☁ Projetos guardados na sua conta Claude' + (UPQ.length || upBusy ? ` · enviando ${UPQ.length + (upBusy?1:0)} arquivo(s)…` : ' · tudo em dia') + (extra ? ' · ' + extra : '') + (cloudErr ? ' · ' + cloudErr : '');
+}
+async function initCloud(){
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const [db, user, assets] = await Promise.all([window.claude.use('db'), window.claude.use('user'), window.claude.use('assets')]);
+    if (!db || !user) return; const uidv = await user.id(); if (!uidv) return;
+    const base = db.doc('data/users/' + uidv + '/vsl');
+    CLOUD = {db, assets, col: base.collection('projects'), files: db.doc('data/users/' + uidv + '/vslfiles')};
+    try { const f = await CLOUD.files.get(); if (f.exists){ const mp = (f.data() || {}).map || {}; FILEMAP = {...mp, ...FILEMAP}; lsSet(FMKEY, JSON.stringify(FILEMAP)); } } catch(e){}
+  } catch(e){ CLOUD = null; }
+}
+const pushT = {};
+function cloudQueue(id, delay = 1500){ if (!CLOUD || !id) return; clearTimeout(pushT[id]); pushT[id] = setTimeout(() => cloudPush(id), delay); }
+async function cloudPush(id){
+  if (!CLOUD) return; const raw = lsGet(pkey(id)); const m = readMetas().find(x => x.id === id); if (!raw || !m) return;
+  try { await CLOUD.col.doc(id).set({name: m.name, updated: m.updated || Date.now(), thumb: m.thumb || '', dur: m.dur || 0, scenes: m.scenes || 0, st: raw, deleted: false}); cloudErr = ''; }
+  catch(e){ cloudErr = e && e.code === 'quota_exceeded' ? 'nuvem cheia' : 'falha ao enviar, tento de novo'; if (e && (e.code === 'unavailable' || e.code === 'resource_exhausted')) cloudQueue(id, 8000); }
+  cloudStateUI();
+}
+async function cloudDelete(id){ if (!CLOUD) return; try { await CLOUD.col.doc(id).set({deleted: true, updated: Date.now(), name: '', st: ''}); } catch(e){} }
+async function cloudPull(){
+  if (!CLOUD) return 0; let snap; try { snap = await CLOUD.col.get(); } catch(e){ return 0; }
+  let changed = 0; const seen = new Set();
+  for (const d of snap.docs){
+    const c = d.data(); if (!c) continue; const id = d.id; seen.add(id); const lm = readMetas().find(x => x.id === id);
+    if (c.deleted){ if (lm && (lm.updated || 0) <= (c.updated || 0) && CUR !== id){ lsDel(pkey(id)); metaWrite(l => { const k = l.findIndex(x => x.id === id); if (k >= 0) l.splice(k, 1); }); changed++; } continue; }
+    if (!lm || (c.updated || 0) > (lm.updated || 0)){
+      if (CUR === id || !c.st) continue;
+      if (lsSet(pkey(id), c.st)){ metaWrite(l => { let m = l.find(x => x.id === id); if (!m){ m = {id}; l.push(m); } Object.assign(m, {name: c.name, updated: c.updated, thumb: c.thumb, dur: c.dur, scenes: c.scenes}); }); changed++; }
+    } else if ((lm.updated || 0) > (c.updated || 0)) cloudQueue(id, 200);
+  }
+  readMetas().forEach(m => { if (!seen.has(m.id)) cloudQueue(m.id, 300); });
+  return changed;
+}
+/* files: images and mp4/webm as they are; anything else (mp3, wav, heic…) wrapped as base64 text */
+const UPQ = []; let upBusy = false, fmT;
+const ASSET_OK = ['image/png','image/jpeg','image/gif','image/webp','video/mp4','video/webm'];
+function cloudUpload(id){ if (!CLOUD || !CLOUD.assets || FILEMAP[id] || UPQ.includes(id)) return; UPQ.push(id); cloudStateUI(); upNext(); }
+function saveFileMap(){ lsSet(FMKEY, JSON.stringify(FILEMAP)); clearTimeout(fmT); fmT = setTimeout(() => { if (CLOUD) CLOUD.files.set({map: FILEMAP}).catch(() => {}); }, 1200); }
+const blobToB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(b); });
+async function upNext(){
+  if (upBusy || !UPQ.length || !CLOUD) return; upBusy = true; const id = UPQ.shift();
+  try {
+    const r = await DB.get(id);
+    if (r && r.blob && r.blob.size){
+      let type = (r.type || r.blob.type || '').split(';')[0].toLowerCase(), body = r.blob, wrapped = false;
+      if (/^audio\/(mp4|x-m4a|m4a|aac)$/.test(type) || /\.(m4a|mp4|mov)$/i.test(r.name || '')) { if (!ASSET_OK.includes(type)) type = 'video/mp4'; }
+      if (!ASSET_OK.includes(type)){ body = new Blob([await blobToB64(r.blob)], {type: 'text/plain'}); wrapped = true; }
+      if (body.size > 20*1024*1024) FILEMAP[id] = {big: true};
+      else {
+        const res = await CLOUD.assets.upload(body, {type: wrapped ? 'text/plain' : type});
+        FILEMAP[id] = {a: res.id, t: r.type || r.blob.type || '', n: r.name || 'arquivo', w: wrapped};
+      }
+      saveFileMap();
+    }
+  } catch(e){
+    if (e && (e.code === 'store_unavailable' || e.code === 'rate_limited')) setTimeout(() => cloudUpload(id), 10000);
+    else if (e && e.code === 'unsupported_type' && !FILEMAP[id]) FILEMAP[id] = {skip: true};
+  }
+  upBusy = false; cloudStateUI(); if (UPQ.length) setTimeout(upNext, 300);
+}
+async function getFile(id){
+  const r = await DB.get(id); if (r) return r;
+  const e = FILEMAP[id]; if (!e || !e.a) return null;
+  try {
+    const resp = await fetch('/_blob/' + e.a); if (!resp.ok) return null;
+    let blob;
+    if (e.w){ const b64 = (await resp.text()).trim(); const bin = atob(b64); const u8 = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i); blob = new Blob([u8], {type: e.t || 'application/octet-stream'}); }
+    else { const b = await resp.blob(); blob = new Blob([b], {type: e.t || b.type}); }
+    const rec = {blob, type: e.t || blob.type, name: e.n || 'arquivo'}; await DB.put(id, rec); return rec;
+  } catch(err){ return null; }
+}
+function backupAllFiles(){
+  if (!CLOUD || !CLOUD.assets) return;
+  readMetas().forEach(m => { try { const F = (JSON.parse(lsGet(pkey(m.id)) || '{}').files) || {}; (F.scenes||[]).forEach(a => (a||[]).forEach(cloudUpload)); ['narr','music','ov'].forEach(k => F[k] && cloudUpload(F[k])); (F.sfx||[]).forEach(x => cloudUpload(x.id)); } catch(e){} });
+}
 
 /* ---------- boot: restore files saved on this phone ---------- */
 async function restore(){
   const F = ST.files; let any = false;
   if (F.scenes && F.scenes.length){
-    MEDIA = await Promise.all(F.scenes.map(async ids => (await Promise.all((ids||[]).map(async id => { const r = await DB.get(id); return r ? makeMedia(r.blob, r.type, r.name, id) : null; }))).filter(Boolean)));
+    MEDIA = await Promise.all(F.scenes.map(async ids => (await Promise.all((ids||[]).map(async id => { const r = await getFile(id); return r ? makeMedia(r.blob, r.type, r.name, id) : null; }))).filter(Boolean)));
     any = true;
   }
-  if (F.narr){ const r = await DB.get(F.narr); if (r) await setNarration(r.blob, r.name, F.narr, false); any = true; }
-  if (F.music){ const r = await DB.get(F.music); if (r) await setMusic(r.blob, r.name, F.music); }
+  if (F.narr){ const r = await getFile(F.narr); if (r) await setNarration(r.blob, r.name, F.narr, false); any = true; }
+  if (F.music){ const r = await getFile(F.music); if (r) await setMusic(r.blob, r.name, F.music); }
   else if (ST.genMusic){ try { MUSIC = {buffer: await genMusic(), name:'Trilha emocional (gerada)', id:null}; musicUI(); } catch(e){} }
-  if (F.ov){ const r = await DB.get(F.ov); if (r) await setOverlay(r.blob, F.ov); }
-  for (const x of (F.sfx||[])){ const r = await DB.get(x.id); if (r) await addCustomSfx(r.blob, x.name, x.id); }
+  if (F.ov){ const r = await getFile(F.ov); if (r) await setOverlay(r.blob, F.ov); }
+  for (const x of (F.sfx||[])){ const r = await getFile(x.id); if (r) await addCustomSfx(r.blob, x.name, x.id); }
   return any;
 }
 renderSfx().then(() => {});
 { const rec = loadMetas(); renderHome(); setRes(720); if (rec) setTimeout(() => toast(rec === 1 ? '1 projeto recuperado' : rec + ' projetos recuperados'), 600); }
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch(e){}
+cloudReady = initCloud().then(async () => {
+  cloudChecked = true; cloudStateUI();
+  const n = await cloudPull(); if (n && !$('#home').hidden){ renderHome(); toast(n === 1 ? '1 projeto trazido da nuvem' : n + ' projetos trazidos da nuvem'); }
+  backupAllFiles(); cloudStateUI();
+});
 (async () => {
   try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); } catch(e){}
   gc();
