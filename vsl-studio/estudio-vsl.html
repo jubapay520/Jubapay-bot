@@ -248,16 +248,25 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <div class="row">
       <button class="btn primary grow" id="addMany">Encher as cenas vazias (várias fotos)</button>
     </div>
-    <div class="scenes" id="sceneList"></div>
-    <button class="btn wide" id="addScene">+ Nova cena</button>
-    <details id="promptBox" hidden>
-      <summary>Prompts de imagem com IA</summary>
+    <details id="promptBox" open>
+      <summary>Prompts para criar as imagens</summary>
       <div class="body">
-        <label class="f">Personagens (para manter as mesmas pessoas em todas as imagens)<input type="text" id="aiChars" value="casal brasileiro de 30 anos, mulher de cabelo castanho ondulado, homem de barba curta"></label>
-        <button class="btn" id="aiPrompts">Gerar um prompt por cena</button>
+        <p class="hint">Cada cena já tem um prompt pronto, logo abaixo do texto dela. Você pode editar. Para fazer todas de uma vez: copie o pedido completo, cole no <b>ChatGPT</b> ou no <b>Gemini</b>, salve as imagens na galeria e use <b>Encher as cenas vazias</b>.</p>
+        <label class="f">Personagens (os mesmos em todas as imagens)<input type="text" id="aiChars"></label>
+        <label class="f">Estilo das imagens<select id="imgStyle">
+          <option value="real">Foto realista de cinema</option>
+          <option value="pb">Preto e branco dramático</option>
+          <option value="noite">Noturno com luz de neon suave</option>
+          <option value="ilus">Ilustração realista pintada</option>
+        </select></label>
+        <button class="btn primary" id="copyAllPrompts">Copiar pedido de todas as imagens</button>
+        <button class="btn" id="aiPrompts" hidden>Melhorar os prompts com IA</button>
         <p class="hint" id="promptStatus"></p>
+        <p class="hint"><b>Dicas:</b> no ChatGPT, se ele parar no meio, escreva "continue com a próxima". Se uma imagem sair com texto escrito ou com outra pessoa, peça "refaça a imagem 3 sem texto e com os mesmos personagens". Rosto na parte de cima da foto fica melhor, porque a legenda ocupa a parte de baixo.</p>
       </div>
     </details>
+    <div class="scenes" id="sceneList"></div>
+    <button class="btn wide" id="addScene">+ Nova cena</button>
     <input type="file" id="fileOne" accept="image/*,video/*" multiple hidden>
     <input type="file" id="fileMany" accept="image/*,video/*" multiple hidden>
   </section>
@@ -794,7 +803,7 @@ function undo(){
   const u = UNDO.pop(); if (!u) return; stop();
   ST = JSON.parse(u.st); MEDIA = u.media; NARR = u.narr; MUSIC = u.music; OV = u.ov;
   if (NARR) processNarr();
-  save(); $('#script').value = ST.script; bindStyle(); bindTop(); narrUI(); musicUI(); ovUI(); renderGalleries(); renderScenes(); renderSfxList(); redraw();
+  save(); $('#script').value = ST.script; $('#aiChars').value = imgChars(); $('#imgStyle').value = ST.imgStyle || 'real'; bindStyle(); bindTop(); narrUI(); musicUI(); ovUI(); renderGalleries(); renderScenes(); renderSfxList(); redraw();
   toast('Desfeito: ' + u.label); $('#undoBtn').disabled = !UNDO.length;
 }
 const narrSig = n => [ST.files.narr, ST.audio.trimStart, ST.audio.trimEnd, ST.audio.shortPauses, ST.audio.maxPause, ST.audio.speed, ST.audio.extraPause, n].join('|');
@@ -1258,7 +1267,7 @@ let SAMPLE = null, DL = null;
       SAMPLE = s; DL = d;
     }
   } catch(e){}
-  if (SAMPLE){ $('#aiBox').hidden = false; $('#promptBox').hidden = false; }
+  if (SAMPLE){ $('#aiBox').hidden = false; $('#aiPrompts').hidden = false; }
 })();
 const aiErr = e => (e && e.code === 'not_granted') ? 'A IA foi recusada neste aparelho. Você ainda pode usar o banco de frases.' : (e && e.code === 'rate_limited') ? 'Muitos pedidos seguidos. Espere um minuto e tente de novo.' : 'Não deu para falar com a IA agora. Tente de novo.';
 $('#aiGen').onclick = async () => {
@@ -1355,11 +1364,17 @@ function renderScenes(){
       hs.onchange = () => { sceneArrays(); while (ST.hold.length <= i) ST.hold.push(''); ST.hold[i] = +hs.value; save(); redraw(); };
       d.insertBefore(hs, th);
     }
-    if (ST.prompts[i]){
-      const pr = document.createElement('div'); pr.className='prompt'; pr.textContent = ST.prompts[i];
-      const cp = document.createElement('button'); cp.className='btn small'; cp.textContent='Copiar prompt';
-      cp.onclick = () => { navigator.clipboard.writeText(ST.prompts[i]).then(()=>toast('Prompt copiado')).catch(()=>{ const r=document.createRange(); r.selectNodeContents(pr); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Texto selecionado: toque em Copiar'); }); };
-      d.append(pr, cp);
+    {
+      const pr = document.createElement('textarea'); pr.className = 'prompt'; pr.rows = 3; pr.value = promptFor(i); pr.setAttribute('aria-label', 'Prompt de imagem da cena ' + (i+1));
+      pr.style.cssText = 'resize:vertical;font:500 13px/1.4 var(--body);text-transform:none;min-height:0';
+      pr.oninput = () => { sceneArrays(); while (ST.prompts.length <= i) ST.prompts.push(''); ST.prompts[i] = pr.value; save(); };
+      const row = document.createElement('div'); row.className = 'row';
+      const cp = document.createElement('button'); cp.className = 'btn small'; cp.textContent = 'Copiar prompt';
+      cp.onclick = () => navigator.clipboard.writeText(pr.value).then(() => toast('Prompt copiado')).catch(() => { pr.focus(); pr.select(); toast('Texto selecionado: toque em Copiar'); });
+      row.appendChild(cp);
+      if (ST.prompts[i]){ const rs = document.createElement('button'); rs.className = 'btn small'; rs.textContent = 'Voltar ao automático'; rs.onclick = () => { ST.prompts[i] = ''; save(); renderScenes(); }; row.appendChild(rs); }
+      const lab = document.createElement('h3'); lab.textContent = 'Prompt da imagem';
+      d.append(lab, pr, row);
     }
     box.appendChild(d);
   });
@@ -1590,7 +1605,7 @@ prompt: em inglês, para gerador de imagens: foto realista cinematográfica, ver
     ST.sfx = L.map((l, i) => { const e = scenes[i] && scenes[i].efeito; return keys.includes(e) ? e : ''; });
     if (!ST.sfx.some(Boolean)) suggestSfx();
     ST.moods = L.map((l, i) => { const m = scenes[i] && scenes[i].clima; return MOODS[m] ? m : guessMood(l, i, L.length); });
-    ST.prompts = L.map((l, i) => (scenes[i] && scenes[i].prompt) || '');
+    ST.prompts = L.map((l, i) => (scenes[i] && scenes[i].prompt) || ''); ST.imgChars = $('#autoChars').value;
     await renderSfx();
     stepUI(2); await new Promise(r => setTimeout(r, 250));
     stepUI(3);
@@ -1600,17 +1615,33 @@ prompt: em inglês, para gerador de imagens: foto realista cinematográfica, ver
     ST.audio = {...DEFAULT_AUDIO, extraPause: 0.35};
     persistMedia(); save(); narrUI(); P.t = 0; redraw(); renderScenes(); draw(0);
     stepUI(5); $('#autoNext').hidden = false;
-    $('#copyImgs').hidden = !ST.prompts.some(Boolean);
+    
     toast('Vídeo montado. Toque ▶ para assistir');
     window.scrollTo({top: 0, behavior: 'smooth'});
   } catch(e){ toast('Algo deu errado. Tente de novo.'); }
   btn.disabled = false;
 };
 const copyText = (txt, ok) => navigator.clipboard.writeText(txt).then(() => toast(ok)).catch(() => toast('Não consegui copiar. Toque e segure para copiar.'));
-$('#copyImgs').onclick = () => {
-  const P2 = ST.prompts.filter(Boolean);
-  copyText(`Crie ${P2.length} imagens fotorrealistas no formato vertical 9:16, uma de cada vez, na ordem, sem nenhum texto escrito nas imagens. Mantenha os mesmos personagens em todas: ${$('#autoChars').value}.\n\n` + P2.map((x, i) => (i+1) + '. ' + x).join('\n\n'), 'Pedido copiado: cole no ChatGPT');
-};
+const DEF_CHARS = 'casal brasileiro de 30 anos, mulher de cabelo castanho ondulado, homem de barba curta';
+const MOOD_PT = {triste:'tristeza e solidão, luz fria azulada', tenso:'tensão e conflito, luz dura avermelhada', romantico:'romance e carinho, luz quente rosada', esperanca:'esperança, luz dourada de amanhecer', misterio:'mistério, sombras profundas e luz roxa suave', urgente:'urgência, contraste forte e luz alaranjada'};
+const STYLE_PT = {real:'Foto realista de cinema, lente 35mm, profundidade de campo rasa, luz dramática', pb:'Foto em preto e branco dramática, alto contraste, granulação de filme', noite:'Foto realista noturna, luz de neon suave refletindo no rosto, atmosfera de cinema', ilus:'Ilustração digital realista com pintura suave e luz dramática'};
+const imgChars = () => (ST.imgChars || DEF_CHARS).trim();
+function autoPrompt(i){
+  const L = lines(), n = L.length, line = L[i] || '';
+  const mood = (ST.moods && MOODS[ST.moods[i]]) ? ST.moods[i] : guessMood(line, i, n);
+  const cta = /whatsapp|me chama|link|botão|clica|toca/i.test(line);
+  const scene = cta ? 'a mulher segurando o celular, olhando para a tela com esperança, prestes a mandar uma mensagem' : `uma cena que represente a frase "${line}"`;
+  return `${STYLE_PT[ST.imgStyle] || STYLE_PT.real}, formato vertical 9:16. Mostre ${scene}. Clima: ${MOOD_PT[mood]}. Personagens, os mesmos em todas as imagens: ${imgChars()}. Emoção clara no rosto, rosto na parte de cima da imagem. Sem nenhum texto, letra ou logotipo na imagem.`;
+}
+const promptFor = i => (ST.prompts && ST.prompts[i]) || autoPrompt(i);
+function allPromptsText(){
+  const L = lines();
+  return `Crie ${L.length} imagens no formato vertical 9:16, uma de cada vez, na ordem, sem nenhum texto escrito nas imagens. Mantenha exatamente os mesmos personagens em todas: ${imgChars()}.\n\n` + L.map((_, i) => (i+1) + '. ' + promptFor(i)).join('\n\n');
+}
+$('#copyImgs').onclick = () => copyText(allPromptsText(), 'Pedido copiado: cole no ChatGPT');
+$('#copyAllPrompts').onclick = () => copyText(allPromptsText(), 'Pedido copiado: cole no ChatGPT ou no Gemini');
+$('#aiChars').oninput = e => { ST.imgChars = e.target.value; save(); clearTimeout(deb); deb = setTimeout(renderScenes, 500); };
+$('#imgStyle').onchange = e => { ST.imgStyle = e.target.value; save(); renderScenes(); };
 $('#copyNarr').onclick = () => copyText(lines().join('\n\n'), 'Texto copiado');
 
 /* ---------- sound effects panel ---------- */
@@ -1840,7 +1871,7 @@ async function openProject(id){
   MEDIA = []; NARR = null; MUSIC = null; OV = null; UNDO.length = 0; $('#undoBtn').disabled = true; P.t = 0; OUT = null;
   $('#outBox').hidden = true; $('#exportStatus').textContent = ''; $('#autoNext').hidden = true; $('#autoSteps').hidden = true; $('#hookList').innerHTML = '';
   if (!Array.isArray(ST.sfx)) suggestSfx();
-  $('#projTitle').value = m.name; sc.value = ST.script;
+  $('#projTitle').value = m.name; sc.value = ST.script; $('#aiChars').value = imgChars(); $('#imgStyle').value = ST.imgStyle || 'real';
   bindStyle(); bindTop(); narrUI(); musicUI(); ovUI(); $('#safeBtn').setAttribute('aria-pressed', !!ST.safe);
   $('#home').hidden = true; $('#editor').hidden = false; $('nav.steps button[data-tab=roteiro]').click(); setRes(720);
   build(); draw(0); updTime(); window.scrollTo(0, 0);
