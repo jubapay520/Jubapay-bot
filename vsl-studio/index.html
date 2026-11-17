@@ -24,6 +24,7 @@ h1 span{color:var(--accent)}
 h2{font-family:var(--display);font-weight:800;font-size:15px;margin:0;text-transform:uppercase;letter-spacing:.04em}
 h3{font-family:var(--display);font-weight:800;font-size:12px;margin:0;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
 .monitor{display:flex;flex-direction:column;gap:10px;align-items:center}
+#cv.feed{height:auto!important;width:min(100%,440px)}
 #cv{height:min(54vh,560px);width:auto;aspect-ratio:9/16;max-width:100%;border-radius:16px;background:#000;display:block;border:1px solid var(--line)}
 .transport{display:flex;align-items:center;gap:10px;width:100%;max-width:420px}
 .transport input[type=range]{flex:1;min-width:0}
@@ -107,6 +108,9 @@ ol.prog li.ok{color:var(--fg)}
 ol.prog li.ok::before{background:var(--go);border-color:var(--go)}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){ol.prog li.on::before{animation:none}}
+.hdr-actions{display:flex;gap:6px}
+#safeBtn[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.th{cursor:pointer}
 .check{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px}
 .check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
 input[type=color]{width:100%;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:4px}
@@ -123,7 +127,10 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
 <div class="wrap">
   <header>
     <h1>Estúdio <span>VSL</span></h1>
-    <button class="btn small" id="newProj">Novo projeto</button>
+    <div class="hdr-actions">
+      <button class="btn small" id="undoBtn" disabled>↶ Desfazer</button>
+      <button class="btn small" id="newProj">Novo projeto</button>
+    </div>
     <span class="sub">Roteiro, fotos e narração viram vídeo 9:16 em Full HD com legenda sincronizada. Tudo fica salvo neste celular.</span>
   </header>
 
@@ -133,6 +140,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
       <button class="round" id="playBtn" aria-label="Tocar prévia"><svg viewBox="0 0 24 24" id="playIco"><path d="M7 4.5v15l13-7.5z"/></svg></button>
       <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Posição na prévia">
       <span class="time" id="timeLbl">0:00 / 0:00</span>
+      <button class="btn icon" id="safeBtn" aria-pressed="false" aria-label="Mostrar a área que o Instagram cobre" title="Área segura">▢</button>
     </div>
   </section>
 
@@ -210,7 +218,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
   <!-- 2 CENAS -->
   <section class="card" data-panel="cenas" hidden>
     <h2>Cenas</h2>
-    <p class="hint">Edite o texto, mude a ordem e coloque <b>quantas fotos ou vídeos quiser em cada cena</b>: o tempo da cena é dividido entre eles. As fotos vêm da sua galeria ou da pasta Arquivos.</p>
+    <p class="hint">Edite o texto, mude a ordem e coloque <b>quantas fotos ou vídeos quiser em cada cena</b>: o tempo da cena é dividido entre eles. As fotos vêm da sua galeria ou da pasta Arquivos. <b>Toque numa foto</b> para mudar o enquadramento (centro, topo, baixo).</p>
     <div class="row">
       <button class="btn primary grow" id="addMany">Encher as cenas vazias (várias fotos)</button>
     </div>
@@ -242,6 +250,16 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <input type="file" id="narrVid" accept="video/*" hidden>
     <div class="row"><span class="pill" id="narrInfo">Sem narração: a legenda usa um ritmo estimado</span><button class="btn small danger" id="narrClear" hidden>Remover</button></div>
     <canvas class="wave" id="wave" width="1000" height="168" aria-label="Forma de onda e marcação das palavras"></canvas>
+    <div class="row" id="syncRow" hidden>
+      <button class="btn grow" id="syncBtn">Sincronizar tocando (mais preciso)</button>
+      <button class="btn small" id="syncReset" hidden>Voltar ao automático</button>
+    </div>
+    <div id="syncPanel" class="card inner" hidden>
+      <p class="hint">O áudio vai tocar desde o começo. Toque no botão grande <b>no instante em que cada nova frase começar</b>.</p>
+      <span class="pill" id="syncNext"></span>
+      <button class="btn primary wide" id="syncTap" style="padding:30px 14px;font-size:18px">Começou a próxima frase</button>
+      <button class="btn small" id="syncCancel">Cancelar</button>
+    </div>
     <div class="card inner">
       <h3>Ritmo do vídeo</h3>
       <div class="slider" id="speedBox"><span>Velocidade da voz (a voz não fica fina nem grossa)</span><output id="spOut"></output><input type="range" id="speed" min="0.7" max="1.3" step="0.05" value="1"></div>
@@ -291,6 +309,10 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
 
   <!-- 4 ESTILO -->
   <section class="card" data-panel="estilo" hidden>
+    <h3>Formato do vídeo</h3>
+    <div class="seg" id="ratioSeg" style="--n:2">
+      <button data-v="916">Reels e Stories 9:16</button><button data-v="45">Feed e anúncio 4:5</button>
+    </div>
     <details open>
       <summary>Ícones e setas do WhatsApp</summary>
       <div class="body">
@@ -312,6 +334,8 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
           <label class="f">Linha 2<input type="text" id="ctaL2"></label>
         </div>
         <label class="check"><input type="checkbox" id="ctaBtn"> Texto dentro de um botão</label>
+        <div class="slider"><span>Altura da chamada na tela</span><output id="ctaYOut"></output><input type="range" id="ctaY" min="45" max="80" step="1"></div>
+        <p class="hint">Use o botão ▢ ao lado da prévia para ver a área que o Instagram e o TikTok cobrem. Deixe as setas fora dela.</p>
         <div class="slider"><span>Segura a tela final por</span><output id="tailOut"></output><input type="range" id="tail" min="0" max="8" step="0.5"></div>
       </div>
     </details>
@@ -383,6 +407,8 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     </select></label>
     <p class="hint">O vídeo é gravado em tempo real: um VSL de 40 s leva 40 s. Deixe a tela ligada e o app aberto até terminar.</p>
     <button class="btn go wide" id="exportBtn">Gerar vídeo</button>
+    <button class="btn wide" id="coverBtn">Salvar capa (imagem do quadro atual da prévia)</button>
+    <p class="hint" id="coverHint">Arraste a prévia até o melhor momento e salve. Use como capa no Reels.</p>
     <div class="progress" id="prog" hidden><i></i></div>
     <p class="hint" id="exportStatus"></p>
     <div id="outBox" hidden class="card inner">
@@ -498,9 +524,9 @@ const DEFAULT_STYLE = {mode:'type', font:'montserrat', bg:'stroke', upper:true, 
   kenburns:true, fade:0.3, vidSound:false,
   ctaOn:true, ctaL1:'ME CHAMA AGORA', ctaL2:'NO WHATSAPP', chev:'#1e90ff', btnColor:'#25d366', ctaBtn:false, tail:2.5,
   icon:'whats', arrow:'chev', anim:'cascade', arrowN:5, iconSz:8.5,
-  ovPos:'cta', ovSize:18, ovRound:true, sfxVisual:true};
+  ovPos:'cta', ovSize:18, ovRound:true, sfxVisual:true, ctaY:58, ratio:'916'};
 const DEFAULT_AUDIO = {trimStart:0, trimEnd:0, shortPauses:false, maxPause:0.4, speed:1, extraPause:0};
-const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], moods:[], genMusic:false, sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
+const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], moods:[], hold:[], fy:{}, anchors:null, safe:false, genMusic:false, sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
 let ST = JSON.parse(JSON.stringify(BASE));
 try { const s = JSON.parse(localStorage.getItem('estudio-vsl-v1')||'null'); if (s) ST = {...ST, ...s, style:{...DEFAULT_STYLE, ...(s.style||{})}, audio:{...DEFAULT_AUDIO, ...(s.audio||{})}, files:{...BASE.files, ...(s.files||{})}}; } catch(e){}
 const save = () => { try { localStorage.setItem('estudio-vsl-v1', JSON.stringify(ST)); } catch(e){} };
@@ -522,7 +548,8 @@ const DB = (() => {
     put: (k, v) => run('readwrite', s => s.put(v, k)).catch(() => {}),
     get: k => run('readonly', s => s.get(k)).catch(() => null),
     del: k => run('readwrite', s => s.delete(k)).catch(() => {}),
-    clear: () => run('readwrite', s => s.clear()).catch(() => {})
+    clear: () => run('readwrite', s => s.clear()).catch(() => {}),
+    keys: () => run('readonly', s => s.getAllKeys()).catch(() => [])
   };
 })();
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -707,8 +734,22 @@ let sfxReady = null;
 const renderSfx = () => sfxReady || (sfxReady = (async () => { for (const k of Object.keys(SFX_DEFS)){ try { SFXBUF[k] = await synthSfx(k); } catch(e){} } })());
 const sfxOptions = () => [['', 'Sem efeito sonoro'], ...Object.entries(SFX_DEFS).map(([k,d]) => [k, d.label]), ...(ST.files.sfx||[]).map(f => ['u:'+f.id, 'Meu: '+f.name])];
 function previewSfx(k){ const b = SFXBUF[k]; if (!b) return; const a = ac(); a.resume(); const src = a.createBufferSource(); src.buffer = b; const g = a.createGain(); g.gain.value = Math.max(0.3, ST.sfxVol); src.connect(g).connect(a.destination); src.start(); }
-const sceneArrays = () => { if (!Array.isArray(ST.moods)) ST.moods = []; if (!Array.isArray(ST.sfx)) ST.sfx = []; return [MEDIA, ST.prompts, ST.sfx, ST.moods]; };
-function spliceScenes(i, del, add){ const n = lines().length; sceneArrays().forEach(arr => { while (arr.length < n) arr.push(arr === MEDIA ? [] : ''); const removed = arr.splice(i, del, ...Array.from({length:add}, () => arr === MEDIA ? [] : '')); if (arr === MEDIA) removed.forEach(r => (r||[]).forEach(m => DB.del(m.id))); }); }
+const UNDO = [];
+function snapshot(label){
+  UNDO.push({st: JSON.stringify(ST), media: MEDIA.map(a => (a||[]).slice()), narr: NARR, music: MUSIC, ov: OV, label});
+  if (UNDO.length > 25) UNDO.shift(); const b = $('#undoBtn'); if (b) b.disabled = false;
+}
+function ovUI(){ $('#ovClear').hidden = !OV; $('#ovBtn').textContent = OV ? 'Trocar foto' : 'Escolher foto'; }
+function undo(){
+  const u = UNDO.pop(); if (!u) return; stop();
+  ST = JSON.parse(u.st); MEDIA = u.media; NARR = u.narr; MUSIC = u.music; OV = u.ov;
+  if (NARR) processNarr();
+  save(); $('#script').value = ST.script; bindStyle(); narrUI(); musicUI(); ovUI(); renderGalleries(); renderScenes(); renderSfxList(); redraw();
+  toast('Desfeito: ' + u.label); $('#undoBtn').disabled = !UNDO.length;
+}
+const narrSig = n => [ST.files.narr, ST.audio.trimStart, ST.audio.trimEnd, ST.audio.shortPauses, ST.audio.maxPause, ST.audio.speed, ST.audio.extraPause, n].join('|');
+const sceneArrays = () => { if (!Array.isArray(ST.moods)) ST.moods = []; if (!Array.isArray(ST.sfx)) ST.sfx = []; if (!Array.isArray(ST.hold)) ST.hold = []; return [MEDIA, ST.prompts, ST.sfx, ST.moods, ST.hold]; };
+function spliceScenes(i, del, add){ const n = lines().length; sceneArrays().forEach(arr => { while (arr.length < n) arr.push(arr === MEDIA ? [] : ''); const removed = arr.splice(i, del, ...Array.from({length:add}, () => arr === MEDIA ? [] : '')); }); }
 
 /* ---------- timing ---------- */
 function build(){
@@ -720,10 +761,34 @@ function build(){
   if (NARR && words.length){
     const {v, hop} = NARR.env; const vi = []; for (let i=0;i<v.length;i++) if (v[i]) vi.push(i);
     if (vi.length > 5){
-      const ws = words.map(weight), W0 = ws.reduce((a,b)=>a+b,0); let c = 0; const V = vi.length;
-      words.forEach((w,i) => {
-        const a = Math.floor(c/W0*V); c += ws[i]; const b = Math.max(a, Math.ceil(c/W0*V)-1);
-        w.start = vi[Math.min(a,V-1)]*hop; w.end = vi[Math.min(b,V-1)]*hop + hop;
+      const nS = L.length, ws = words.map(weight), nF = v.length, V = vi.length;
+      const sw = Array.from({length:nS}, () => []); words.forEach((w,i) => sw[w.s].push(i));
+      const sceneW = sw.map(ix => ix.reduce((a,i) => a + ws[i], 0)); const W0 = sceneW.reduce((a,b)=>a+b,0) || 1;
+      let bounds = null;
+      // 1) scene starts tapped by hand
+      if (ST.anchors && ST.anchors.sig === narrSig(nS) && ST.anchors.t.length === nS-1) bounds = [0, ...ST.anchors.t.map(x => Math.round(x/hop)), nF];
+      // 2) otherwise snap scene changes to the pauses in the voice
+      if (!bounds){
+        const cumV = new Int32Array(nF+1); for (let i=0;i<nF;i++) cumV[i+1] = cumV[i] + v[i];
+        const first = vi[0], last = vi[V-1], pauses = []; let i = first;
+        while (i < last){ if (!v[i]){ let j = i; while (j < last && !v[j]) j++; if (j - i >= 9) pauses.push({mid: Math.round((i+j)/2), cv: cumV[i], len: j-i}); i = j; } else i++; }
+        bounds = [0]; let pi = 0, acc = 0; const avg = V/nS;
+        for (let k=1;k<nS;k++){
+          acc += sceneW[k-1]; const exp = acc/W0*V; let best = -1, bestScore = Infinity;
+          for (let q=pi;q<pauses.length;q++){ const d = Math.abs(pauses[q].cv - exp)/avg; if (d > 0.45){ if (pauses[q].cv > exp) break; continue; } const sc = d - Math.min(0.6, pauses[q].len*hop)*0.4; if (sc < bestScore){ bestScore = sc; best = q; } }
+          if (best >= 0){ bounds.push(pauses[best].mid); pi = best+1; } else bounds.push(vi[Math.min(V-1, Math.max(0, Math.round(exp)))]);
+        }
+        bounds.push(nF);
+      }
+      for (let k=1;k<bounds.length;k++) if (bounds[k] < bounds[k-1]) bounds[k] = bounds[k-1];
+      // 3) spread each scene's words over the voiced frames inside it
+      sw.forEach((ix, k) => {
+        if (!ix.length) return; const a = bounds[k], b = Math.max(bounds[k+1], a+1);
+        const fr = []; for (let i=a;i<b;i++) if (v[i]) fr.push(i);
+        const tw = ix.reduce((x,i) => x + ws[i], 0) || 1; let c = 0;
+        if (fr.length < 2){ ix.forEach(i => { const p0 = c/tw; c += ws[i]; const p1 = c/tw; words[i].start = (a + (b-a)*p0)*hop; words[i].end = (a + (b-a)*p1)*hop; }); return; }
+        const F = fr.length;
+        ix.forEach(i => { const s0 = Math.floor(c/tw*F); c += ws[i]; const e0 = Math.max(s0, Math.ceil(c/tw*F)-1); words[i].start = fr[Math.min(s0,F-1)]*hop; words[i].end = fr[Math.min(e0,F-1)]*hop + hop; });
       });
       aligned = true;
     }
@@ -734,7 +799,7 @@ function build(){
       const n = w.t.replace(/[^\p{L}\p{N}]/gu,'').length;
       const d = (0.13 + 0.052*n)*k; w.start = t; w.end = t+d; t += d;
       if (/[.!?…]$/.test(w.t)) t += 0.35*k; else if (/[,;:]$/.test(w.t)) t += 0.18*k;
-      if (words[i+1] && words[i+1].s !== w.s) t += 0.15*k + ST.audio.extraPause;
+      if (words[i+1] && words[i+1].s !== w.s) t += 0.15*k + ST.audio.extraPause + (+((ST.hold||[])[w.s]) || 0);
     });
   }
   words.forEach(w => { w.start = Math.max(0, w.start+ST.offset); w.end = Math.max(w.start+0.05, w.end+ST.offset); });
@@ -765,10 +830,10 @@ function build(){
 }
 
 /* ---------- drawing ---------- */
-function cover(src, sw, sh, rx, ry, rw, rh, scale, pan){
+function cover(src, sw, sh, rx, ry, rw, rh, scale, pan, fy = 0.4){
   if (!sw || !sh) return;
   const r = Math.max(rw/sw, rh/sh)*scale, dw = sw*r, dh = sh*r;
-  ctx.drawImage(src, rx + (rw-dw)/2 + pan*(dw-rw)/2, ry + (rh-dh)*0.4, dw, dh);
+  ctx.drawImage(src, rx + (rw-dw)/2 + pan*(dw-rw)/2, ry + (rh-dh)*fy, dw, dh);
 }
 function drawShot(sh, t, alpha){
   if (!sh) return;
@@ -778,8 +843,9 @@ function drawShot(sh, t, alpha){
   const p = Math.min(1, Math.max(0,(t-sh.start)/Math.max(0.5, sh.end-sh.start)));
   const kb = ST.style.kenburns ? (sh.k%2 ? 1.1 - 0.08*p : 1.02 + 0.08*p) : 1;
   const pan = ST.style.kenburns ? (sh.k%3===0 ? -0.25 : sh.k%3===1 ? 0.25 : 0) * (p-0.5) : 0;
-  if (m && m.type==='img') cover(m.el, m.el.naturalWidth, m.el.naturalHeight, 0,0,W,mh, kb, pan);
-  else if (m && m.type==='vid' && m.el.readyState >= 2) cover(m.el, m.el.videoWidth, m.el.videoHeight, 0,0,W,mh, 1, 0);
+  const fy = m && ST.fy && ST.fy[m.id] != null ? ST.fy[m.id] : 0.4;
+  if (m && m.type==='img') cover(m.el, m.el.naturalWidth, m.el.naturalHeight, 0,0,W,mh, kb, pan, fy);
+  else if (m && m.type==='vid' && m.el.readyState >= 2) cover(m.el, m.el.videoWidth, m.el.videoHeight, 0,0,W,mh, 1, 0, fy);
   else drawMood(sh, t, mh);
   ctx.restore();
 }
@@ -956,7 +1022,7 @@ function drawOverlay(t, inCta){
   if (!OV) return; const s = ST.style; const pos = s.ovPos;
   if (pos === 'cta' && !inCta) return;
   const sz = W*s.ovSize/100; let cx, cy;
-  if (pos === 'cta') { cx = W/2; cy = H*0.585 - sz*0.1; }
+  if (pos === 'cta') { cx = W/2; cy = H*((s.ctaY || 58)/100 - 0.115) - sz*0.1; }
   else if (pos === 'tl') { cx = W*0.05 + sz/2; cy = H*0.04 + sz/2; }
   else if (pos === 'tr' || pos === 'all') { cx = W*0.95 - sz/2; cy = H*0.04 + sz/2; }
   const im = OV.el; const iw = im.naturalWidth, ih = im.naturalHeight; if (!iw) return;
@@ -974,7 +1040,7 @@ function drawOverlay(t, inCta){
 function drawCTA(t, t0){
   const s = ST.style, k = t - t0, ap = Math.min(1, k/0.35);
   ctx.save(); ctx.globalAlpha = ap;
-  const isz = W*s.iconSz/100; const iy = H*0.70;
+  const isz = W*s.iconSz/100; const iy = H*(s.ctaY || 58)/100;
   if (s.icon !== 'none') drawIcon(ctx, s.icon, W/2, iy, isz*(0.9+0.1*ap));
   const px = W*0.058, pulse = 1 + 0.035*Math.sin(k*5);
   const textY = s.icon !== 'none' ? iy + isz*0.55 + px*0.9 : iy;
@@ -990,7 +1056,7 @@ function drawCTA(t, t0){
   ctx.setTransform(1,0,0,1,0,0);
   const top = textY + px*1.1*(Math.max(1,ls.length)-1) + px*(s.ctaBtn ? 1.6 : 1.3);
   ctx.globalAlpha = ap;
-  drawArrows(ctx, s.arrow, s.anim, W/2, top, W, k, s.chev, s.arrowN, H*0.965);
+  drawArrows(ctx, s.arrow, s.anim, W/2, top, W, k, s.chev, s.arrowN, s.ratio === '45' ? H*0.88 : H*0.79);
   ctx.restore();
 }
 function draw(t){
@@ -1015,6 +1081,18 @@ function draw(t){
   const inCta = t >= ctaStart;
   if (inCta){ drawOverlay(t - ctaStart, true); drawCTA(t, ctaStart); } else drawCaption(t);
   if (ST.style.ovPos !== 'cta') drawOverlay(null, inCta);
+  if (ST.safe && !REC && !CLEAN) drawSafe();
+}
+let CLEAN = false;
+function drawSafe(){
+  ctx.save(); ctx.fillStyle = 'rgba(255,60,60,.22)'; ctx.strokeStyle = 'rgba(255,90,90,.9)'; ctx.lineWidth = W*0.004; ctx.setLineDash([W*0.015, W*0.012]);
+  const feed = ST.style.ratio === '45';
+  const by = feed ? H*0.9 : H*0.8, rx = W*0.88, ry = H*0.5;
+  ctx.fillRect(0, by, W, H-by); ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(W, by); ctx.stroke();
+  if (!feed){ ctx.fillRect(rx, ry, W-rx, by-ry); ctx.strokeRect(rx, ry, W-rx, by-ry); ctx.fillRect(0, 0, W, H*0.08); ctx.beginPath(); ctx.moveTo(0, H*0.08); ctx.lineTo(W, H*0.08); ctx.stroke(); }
+  ctx.setLineDash([]); ctx.fillStyle = '#fff'; ctx.font = `800 ${W*0.03}px Manrope, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(feed ? 'Área que pode ser cortada' : 'Coberto pelos botões do Instagram/TikTok', W/2, by + (H-by)/2);
+  ctx.restore();
 }
 
 /* ---------- videos inside scenes ---------- */
@@ -1077,10 +1155,12 @@ function stop(){
 }
 function setIcon(pl){ $('#playIco').innerHTML = pl ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>'; $('#playBtn').setAttribute('aria-label', pl ? 'Pausar prévia' : 'Tocar prévia'); }
 function updTime(){ $('#timeLbl').textContent = fmt(P.t)+' / '+fmt(TM.total); $('#scrub').value = Math.round(P.t/TM.total*1000); }
-function redraw(){ build(); if (P.t > TM.total) P.t = TM.total; if (!P.playing){ syncVideos(P.t,false); draw(P.t); } updTime(); drawWave(); renderChecks(); }
+function redraw(){ if (!REC && !CLEAN){ const want = Math.round(ST.style.ratio === '45' ? cv.width*5/4 : cv.width*16/9); if (cv.height !== want) setRes(cv.width); } build(); if (P.t > TM.total) P.t = TM.total; if (!P.playing){ syncVideos(P.t,false); draw(P.t); } updTime(); drawWave(); renderChecks(); }
 const seek = t => { if (REC) return; if (P.playing) stop(); P.t = Math.max(0, Math.min(TM.total, t)); syncVideos(P.t,false); draw(P.t); updTime(); };
 
 $('#playBtn').onclick = () => { if (REC) return; P.playing ? stop() : play(); };
+$('#safeBtn').onclick = () => { ST.safe = !ST.safe; save(); $('#safeBtn').setAttribute('aria-pressed', !!ST.safe); if (!P.playing) draw(P.t); };
+$('#undoBtn').onclick = undo;
 $('#scrub').oninput = e => seek(e.target.value/1000*TM.total);
 
 /* ---------- tabs ---------- */
@@ -1097,7 +1177,7 @@ $$('nav.steps button').forEach(b => b.onclick = () => {
 const sc = $('#script'); sc.value = ST.script;
 let deb; sc.oninput = () => { ST.script = sc.value; save(); clearTimeout(deb); deb = setTimeout(redraw, 200); };
 Object.keys(TPL).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; $('#tplSel').appendChild(o); });
-$('#tplSel').onchange = e => { const k = e.target.value; if (!k) return; setLines(TPL[k].split('\n')); ST.prompts = []; save(); redraw(); e.target.value=''; toast('Roteiro carregado'); };
+$('#tplSel').onchange = e => { const k = e.target.value; if (!k) return; snapshot('carregar roteiro'); setLines(TPL[k].split('\n')); ST.prompts = []; save(); redraw(); e.target.value=''; toast('Roteiro carregado'); };
 let CAT = 'Gancho';
 function renderPhrases(){
   const cats = $('#cats'); cats.innerHTML = '';
@@ -1106,6 +1186,7 @@ function renderPhrases(){
   PHRASES[CAT].forEach(p => { const b = document.createElement('button'); b.innerHTML = '<span></span><span class="plus">+</span>'; b.firstChild.textContent = p; b.onclick = () => insertLine(p); box.appendChild(b); });
 }
 function insertLine(text){
+  snapshot('inserir frase');
   const v = sc.value; const pos = sc.selectionEnd ?? v.length;
   const before = v.slice(0, pos); const lineEnd = v.indexOf('\n', pos); const cut = lineEnd < 0 ? v.length : lineEnd;
   const nv = v.slice(0, cut) + (cut > 0 ? '\n' : '') + text + v.slice(cut);
@@ -1140,7 +1221,7 @@ Duração alvo: ${dur} segundos, cerca de ${Math.round(dur*2.5)} palavras no tot
 Estrutura: 1) gancho forte na primeira linha, que para a rolagem; 2) identificação com a dor; 3) curiosidade sobre algo escondido que a pessoa não percebe; 4) promessa do que ela vai descobrir; 5) última linha exatamente: "${$('#aiCta').value}".
 Regras: cada linha é uma cena e tem de 4 a 11 palavras; fale com "você"; linguagem simples e falada; sem emojis, hashtags, rótulos ou aspas; não prometa resultados garantidos.
 Responda apenas com JSON: {"linhas": ["...", "..."]}`, {modelTier:'default'});
-    if (r && Array.isArray(r.linhas) && r.linhas.length){ setLines(r.linhas); ST.prompts = []; save(); redraw(); $('#aiStatus').textContent = 'Pronto. Edite o que quiser.'; }
+    if (r && Array.isArray(r.linhas) && r.linhas.length){ snapshot('roteiro com IA'); setLines(r.linhas); ST.prompts = []; save(); redraw(); $('#aiStatus').textContent = 'Pronto. Edite o que quiser.'; }
     else $('#aiStatus').textContent = 'A resposta veio vazia. Tente de novo.';
   } catch(e){ $('#aiStatus').textContent = aiErr(e); }
   $('#aiGen').disabled = false;
@@ -1150,7 +1231,7 @@ $('#aiHooks').onclick = async () => {
   try {
     const r = await SAMPLE.json(`Crie 5 ganchos diferentes (primeira frase de um VSL curto em vídeo vertical, português do Brasil) para o tema "${$('#aiTema').value}". Roteiro atual:\n${ST.script}\nCada gancho tem de 5 a 12 palavras, fala com "você" e faz a pessoa parar de rolar. Varie: pergunta, afirmação forte, segredo, identificação. Sem emojis. Responda só JSON: {"ganchos":["..."]}`, {modelTier:'quick'});
     const box = $('#hookList'); box.innerHTML = '';
-    (r && r.ganchos || []).forEach(h => { const b = document.createElement('button'); b.textContent = h; b.onclick = () => { const L = lines(); L[0] = h; setLines(L); redraw(); toast('Gancho trocado'); }; box.appendChild(b); });
+    (r && r.ganchos || []).forEach(h => { const b = document.createElement('button'); b.textContent = h; b.onclick = () => { snapshot('trocar gancho'); const L = lines(); L[0] = h; setLines(L); redraw(); toast('Gancho trocado'); }; box.appendChild(b); });
     $('#aiStatus').textContent = 'Toque em um gancho para usar como primeira linha.';
   } catch(e){ $('#aiStatus').textContent = aiErr(e); }
   $('#aiHooks').disabled = false;
@@ -1180,6 +1261,7 @@ async function addFiles(files, sceneIdx){
   for (const f of files){ const id = await storeFile(f); out.push(await makeMedia(f, f.type, f.name, id)); }
   return out;
 }
+const FY = [[0.4,'centro'],[0.1,'topo'],[0.85,'baixo']];
 function renderScenes(){
   const box = $('#sceneList'); box.innerHTML = ''; const L = lines();
   L.forEach((t,i) => {
@@ -1201,8 +1283,11 @@ function renderScenes(){
       const c = document.createElement('div'); c.className = 'th';
       const el = document.createElement(m.type==='vid'?'video':'img'); el.src = m.url; if (m.type==='vid'){ el.muted = true; el.playsInline = true; el.setAttribute('playsinline',''); } else el.alt = '';
       const x = document.createElement('button'); x.className = 'x'; x.textContent = '✕'; x.setAttribute('aria-label','Tirar esta mídia');
-      x.onclick = () => { DB.del(m.id); MEDIA[i].splice(j,1); persistMedia(); renderScenes(); redraw(); };
-      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = m.type==='vid' ? 'vídeo' : (j+1);
+      x.onclick = ev => { ev.stopPropagation(); snapshot('remover foto'); MEDIA[i].splice(j,1); persistMedia(); renderScenes(); redraw(); };
+      const cur = ST.fy && ST.fy[m.id] != null ? ST.fy[m.id] : 0.4; const fk = Math.max(0, FY.findIndex(f => Math.abs(f[0]-cur) < 0.01));
+      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = (m.type==='vid' ? 'vídeo' : (j+1)) + ' · ' + FY[fk][1];
+      c.setAttribute('role','button'); c.setAttribute('aria-label', 'Mudar enquadramento da mídia '+(j+1));
+      c.onclick = () => { const nx = FY[(fk+1) % FY.length]; if (!ST.fy) ST.fy = {}; ST.fy[m.id] = nx[0]; save(); build(); const sh = TM.shots.find(x => x.m === m); if (sh) seek(sh.start + 0.3); else draw(P.t); renderScenes(); toast('Enquadramento: ' + nx[1]); };
       c.append(el, x, tag); th.appendChild(c);
     });
     const add = document.createElement('button'); add.className = 'add'; add.textContent = items.length ? '+ mais' : '+ fotos';
@@ -1213,6 +1298,13 @@ function renderScenes(){
     sel.value = (ST.sfx && ST.sfx[i]) || '';
     sel.onchange = () => { if (!ST.sfx) ST.sfx = []; while (ST.sfx.length <= i) ST.sfx.push(''); ST.sfx[i] = sel.value; save(); previewSfx(sel.value); draw(P.t); };
     d.append(head, ta, sel, th);
+    if (!NARR){
+      const hs = document.createElement('select'); hs.setAttribute('aria-label', 'Tempo extra na cena '+(i+1));
+      [['0','Tempo normal nesta cena'],['0.5','+0,5 s nesta cena'],['1','+1 s nesta cena'],['1.5','+1,5 s nesta cena'],['2','+2 s nesta cena'],['3','+3 s nesta cena']].forEach(([v,l]) => { const o = document.createElement('option'); o.value = v; o.textContent = '⏱ ' + l; hs.appendChild(o); });
+      hs.value = String(+((ST.hold||[])[i]) || 0);
+      hs.onchange = () => { sceneArrays(); while (ST.hold.length <= i) ST.hold.push(''); ST.hold[i] = +hs.value; save(); redraw(); };
+      d.insertBefore(hs, th);
+    }
     if (ST.prompts[i]){
       const pr = document.createElement('div'); pr.className='prompt'; pr.textContent = ST.prompts[i];
       const cp = document.createElement('button'); cp.className='btn small'; cp.textContent='Copiar prompt';
@@ -1223,18 +1315,18 @@ function renderScenes(){
   });
 }
 function moveScene(i, dir){
-  const L = lines(); const j = i + dir; if (j < 0 || j >= L.length) return;
+  const L = lines(); const j = i + dir; if (j < 0 || j >= L.length) return; snapshot('mover cena');
   [L[i], L[j]] = [L[j], L[i]]; while (MEDIA.length < L.length) MEDIA.push([]);
   sceneArrays().forEach(arr => { while (arr.length < L.length) arr.push(arr === MEDIA ? [] : ''); [arr[i], arr[j]] = [arr[j], arr[i]]; });
   setLines(L); persistMedia(); redraw(); renderScenes();
 }
 function deleteScene(i){
-  const L = lines(); if (L.length <= 1) return; spliceScenes(i, 1, 0); L.splice(i,1);
+  const L = lines(); if (L.length <= 1) return; snapshot('apagar cena'); spliceScenes(i, 1, 0); L.splice(i,1);
   setLines(L); persistMedia(); redraw(); renderScenes(); toast('Cena apagada');
 }
-$('#addScene').onclick = () => { const L = lines(); const pos = Math.max(0, L.length-1); spliceScenes(pos, 0, 1); L.splice(pos, 0, 'Nova cena: escreva a frase aqui'); setLines(L); persistMedia(); redraw(); renderScenes(); };
+$('#addScene').onclick = () => { snapshot('nova cena'); const L = lines(); const pos = Math.max(0, L.length-1); spliceScenes(pos, 0, 1); L.splice(pos, 0, 'Nova cena: escreva a frase aqui'); setLines(L); persistMedia(); redraw(); renderScenes(); };
 $('#fileOne').onchange = async e => {
-  const files = [...e.target.files]; e.target.value=''; if (!files.length) return; const i = +e.target.dataset.idx;
+  const files = [...e.target.files]; e.target.value=''; if (!files.length) return; const i = +e.target.dataset.idx; snapshot('adicionar fotos');
   toast('Carregando…'); const ms = await addFiles(files);
   while (MEDIA.length <= i) MEDIA.push([]); MEDIA[i] = (MEDIA[i]||[]).concat(ms); persistMedia();
   renderScenes(); redraw(); if (TM.scenes[i]) seek(TM.scenes[i].start + 0.4); toast(ms.length + ' adicionada(s) na cena ' + (i+1));
@@ -1242,7 +1334,7 @@ $('#fileOne').onchange = async e => {
 $('#addMany').onclick = () => $('#fileMany').click();
 $('#fileMany').onchange = async e => {
   const files = [...e.target.files]; e.target.value=''; if (!files.length) return;
-  const n = lines().length; while (MEDIA.length < n) MEDIA.push([]);
+  snapshot('adicionar fotos'); const n = lines().length; while (MEDIA.length < n) MEDIA.push([]);
   toast('Carregando '+files.length+' arquivo(s)…');
   const ms = await addFiles(files);
   let empties = []; for (let i=0;i<n;i++) if (!(MEDIA[i]||[]).length) empties.push(i);
@@ -1266,6 +1358,9 @@ function narrUI(){
     $('#narrInfo').className = 'pill ok';
   } else { $('#narrInfo').textContent = 'Sem narração: a legenda usa um ritmo estimado'; $('#narrInfo').className='pill'; }
   $('#speedBox').hidden = !has;
+  const manual = has && ST.anchors && ST.anchors.sig === narrSig(lines().length);
+  $('#syncRow').hidden = !has; $('#syncReset').hidden = !manual;
+  if (manual) $('#narrInfo').textContent += ' · sincronizado à mão';
   $('#speed').value = ST.audio.speed; $('#spOut').textContent = num(ST.audio.speed,2).replace(',00','')+'×' + (ST.audio.speed < 1 ? ' (mais lenta)' : ST.audio.speed > 1 ? ' (mais rápida)' : ' (normal)');
   $('#extraPause').value = ST.audio.extraPause; $('#xpOut').textContent = ST.audio.extraPause ? '+'+num(ST.audio.extraPause,2)+' s' : 'nenhuma';
   $('#shortPauses').checked = ST.audio.shortPauses; $('#pauseBox').hidden = !ST.audio.shortPauses;
@@ -1275,7 +1370,6 @@ async function setNarration(blob, name, id, fresh){
   $('#narrInfo').textContent = 'Lendo o áudio…'; $('#narrInfo').className = 'pill';
   try {
     const orig = await decodeBlob(blob);
-    if (NARR && NARR.id && NARR.id !== id) DB.del(NARR.id);
     NARR = {orig, env0: envelope(orig), name, id};
     if (fresh) ST.audio = {...DEFAULT_AUDIO};
     ST.files.narr = id; save();
@@ -1284,9 +1378,9 @@ async function setNarration(blob, name, id, fresh){
 }
 $('#narrBtn').onclick = () => { ac(); $('#narrFile').click(); };
 $('#narrVidBtn').onclick = () => { ac(); $('#narrVid').click(); };
-const onNarrFile = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; const id = await storeFile(f); setNarration(f, f.name || 'áudio', id, true); };
+const onNarrFile = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; snapshot('trocar narração'); ST.anchors = null; const id = await storeFile(f); setNarration(f, f.name || 'áudio', id, true); };
 $('#narrFile').onchange = onNarrFile; $('#narrVid').onchange = onNarrFile;
-$('#narrClear').onclick = () => { if (NARR) DB.del(NARR.id); NARR = null; ST.files.narr = null; save(); narrUI(); redraw(); };
+$('#narrClear').onclick = () => { snapshot('remover narração'); NARR = null; ST.files.narr = null; save(); narrUI(); redraw(); };
 let audDeb; const reprocess = () => { clearTimeout(audDeb); audDeb = setTimeout(() => { processNarr(); narrUI(); redraw(); }, 280); };
 $('#trimStart').oninput = e => { ST.audio.trimStart = +e.target.value; $('#tsOut').textContent = num(ST.audio.trimStart,1)+' s'; save(); reprocess(); };
 $('#trimEnd').oninput = e => { ST.audio.trimEnd = +e.target.value; $('#teOut').textContent = num(ST.audio.trimEnd,1)+' s'; save(); reprocess(); };
@@ -1321,8 +1415,8 @@ async function setMusic(blob, name, id){
   catch(err){ $('#musicInfo').textContent = 'Não consegui ler essa música'; $('#musicInfo').className='pill warn'; }
   renderChecks();
 }
-$('#musicFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; if (MUSIC) DB.del(MUSIC.id); const id = await storeFile(f); setMusic(f, f.name || 'música', id); };
-$('#musicClear').onclick = () => { if (MUSIC && MUSIC.id) DB.del(MUSIC.id); MUSIC = null; ST.files.music = null; ST.genMusic = false; save(); $('#musicInfo').textContent='Sem música'; $('#musicInfo').className='pill'; $('#musicClear').hidden=true; renderChecks(); };
+$('#musicFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; snapshot('trocar música'); const id = await storeFile(f); setMusic(f, f.name || 'música', id); };
+$('#musicClear').onclick = () => { snapshot('remover música'); MUSIC = null; ST.files.music = null; ST.genMusic = false; save(); $('#musicInfo').textContent='Sem música'; $('#musicInfo').className='pill'; $('#musicClear').hidden=true; renderChecks(); };
 $('#musicFade').checked = ST.musicFade; $('#musicFade').onchange = e => { ST.musicFade = e.target.checked; save(); };
 
 function drawWave(){
@@ -1342,6 +1436,19 @@ bindSlider('#offset','offset','#offOut', v => (v>0?'+':'')+num(v)+' s');
 bindSlider('#rate','rate','#rateOut', v => num(v,1));
 bindSlider('#narrVol','narrVol','#nvOut', v => Math.round(v*100)+'%');
 bindSlider('#musicVol','musicVol','#mvOut', v => Math.round(v*100)+'%');
+
+/* ---------- tap to sync ---------- */
+let SYNC = null;
+function syncLabel(){ const L = lines(); const k = SYNC.t.length + 1; $('#syncNext').textContent = `Frase ${k+1} de ${SYNC.n}: ${L[k] || ''}`; }
+function finishSync(){
+  if (!SYNC) return; const sy = SYNC; SYNC = null; P.onEnd = null; stop(); $('#syncPanel').hidden = true;
+  if (sy.t.length === sy.n - 1){ snapshot('sincronização'); ST.anchors = {sig: narrSig(sy.n), t: sy.t}; save(); narrUI(); redraw(); toast('Sincronizado. Toque ▶ para conferir'); }
+  else toast('O áudio acabou antes de marcar todas as frases. Tente de novo.');
+}
+$('#syncBtn').onclick = () => { if (!NARR || REC) return; const n = lines().length; if (n < 2) return; SYNC = {t: [], n}; $('#syncPanel').hidden = false; syncLabel(); stop(); P.t = 0; play(); P.onEnd = finishSync; };
+$('#syncTap').onclick = () => { if (!SYNC) return; const t = Math.max(0, P.t - 0.12); if (SYNC.t.length && t <= SYNC.t[SYNC.t.length-1] + 0.2) return; SYNC.t.push(t); if (SYNC.t.length >= SYNC.n - 1) finishSync(); else syncLabel(); };
+$('#syncCancel').onclick = () => { SYNC = null; P.onEnd = null; stop(); $('#syncPanel').hidden = true; };
+$('#syncReset').onclick = () => { snapshot('sincronização'); ST.anchors = null; save(); narrUI(); redraw(); toast('Voltou ao automático'); };
 
 /* ---------- generated soundtrack ---------- */
 async function genMusic(){
@@ -1384,10 +1491,10 @@ function musicUI(){
   renderChecks();
 }
 async function useGenMusic(){
-  const buffer = await genMusic(); if (MUSIC && MUSIC.id) DB.del(MUSIC.id);
+  const buffer = await genMusic();
   MUSIC = {buffer, name:'Trilha emocional (gerada)', id:null}; ST.genMusic = true; ST.files.music = null; save(); musicUI();
 }
-$('#musicGen').onclick = async () => { $('#musicInfo').textContent = 'Gerando trilha…'; try { await useGenMusic(); toast('Trilha criada'); } catch(e){ musicUI(); toast('Não consegui gerar a trilha'); } };
+$('#musicGen').onclick = async () => { snapshot('gerar trilha'); $('#musicInfo').textContent = 'Gerando trilha…'; try { await useGenMusic(); toast('Trilha criada'); } catch(e){ musicUI(); toast('Não consegui gerar a trilha'); } };
 
 /* ---------- auto mode: AI does everything ---------- */
 const AUTO_STEPS = ['Escrevendo o roteiro e dividindo as cenas', 'Escolhendo o clima e os efeitos de cada cena', 'Criando os fundos animados', 'Gerando a trilha sonora', 'Montando o vídeo'];
@@ -1425,8 +1532,8 @@ prompt: em inglês, para gerador de imagens: foto realista cinematográfica, ver
     }
     if (!L){ L = lines(); scenes = []; if (!SAMPLE) toast('Sem a IA de texto aqui: usei o roteiro atual'); }
     // new content replaces media and narration
-    MEDIA.forEach(a => (a||[]).forEach(m => DB.del(m.id))); MEDIA = L.map(() => []);
-    if (NARR){ DB.del(NARR.id); NARR = null; ST.files.narr = null; }
+    snapshot('criar com IA'); MEDIA = L.map(() => []); ST.anchors = null; ST.hold = []; ST.fy = {};
+    if (NARR){ NARR = null; ST.files.narr = null; }
     ST.script = $('#script').value = L.join('\n');
     stepUI(1);
     const keys = SFX_KEYS();
@@ -1473,8 +1580,8 @@ function suggestSfx(){
   });
   save();
 }
-$('#sfxAuto').onclick = () => { suggestSfx(); renderScenes(); redraw(); toast('Efeitos colocados. Confira ou troque na aba Cenas'); };
-$('#sfxNone').onclick = () => { ST.sfx = lines().map(() => ''); save(); renderScenes(); redraw(); toast('Efeitos removidos'); };
+$('#sfxAuto').onclick = () => { snapshot('sugerir efeitos'); suggestSfx(); renderScenes(); redraw(); toast('Efeitos colocados. Confira ou troque na aba Cenas'); };
+$('#sfxNone').onclick = () => { snapshot('tirar efeitos'); ST.sfx = lines().map(() => ''); save(); renderScenes(); redraw(); toast('Efeitos removidos'); };
 bindSlider('#sfxVol','sfxVol','#sfxVolOut', v => Math.round(v*100)+'%');
 $('#sfxUpBtn').onclick = () => { ac(); $('#sfxFile').click(); };
 async function addCustomSfx(blob, name, id){ try { SFXBUF['u:'+id] = await decodeBlob(blob); return true; } catch(e){ return false; } }
@@ -1512,21 +1619,22 @@ function bindStyle(){
   bindSlider('#arrowN','arrowN','#arrowNOut', v => v, s);
   bindSlider('#iconSz','iconSz','#iconSzOut', v => num(v,1), s);
   bindSlider('#ovSize','ovSize','#ovSizeOut', v => v+'%', s);
+  bindSlider('#ctaY','ctaY','#ctaYOut', v => v+'%', s);
   bindSlider('#fade','fade','#fadeOut', v => v ? num(v,2)+' s' : 'corte seco', s);
   ['color','hi','chev','btnColor','ctaL1','ctaL2'].forEach(k => { const el = $('#'+k); el.value = s[k]; el.oninput = () => { s[k] = el.value; save(); redraw(); if (k==='chev') renderGalleries(); }; });
   $('#font').value = s.font; $('#font').onchange = async e => { s.font = e.target.value; save(); try { await document.fonts.load(fontStr(40)); } catch(err){} redraw(); };
   ['kenburns','ctaOn','ctaBtn','upper','ovRound','vidSound','sfxVisual'].forEach(k => { const el = $('#'+k); el.checked = s[k]; el.onchange = () => { s[k] = el.checked; save(); redraw(); }; });
-  bindSeg('#modeSeg','mode'); bindSeg('#bgSeg','bg'); bindSeg('#animSeg','anim'); bindSeg('#ovSeg','ovPos');
+  bindSeg('#modeSeg','mode'); bindSeg('#ratioSeg','ratio'); bindSeg('#bgSeg','bg'); bindSeg('#animSeg','anim'); bindSeg('#ovSeg','ovPos');
 }
 bindStyle();
-$('#resetStyle').onclick = () => { ST.style = {...DEFAULT_STYLE}; save(); bindStyle(); renderGalleries(); redraw(); toast('Estilo padrão'); };
+$('#resetStyle').onclick = () => { snapshot('estilo padrão'); ST.style = {...DEFAULT_STYLE}; save(); bindStyle(); renderGalleries(); redraw(); toast('Estilo padrão'); };
 async function setOverlay(blob, id){
   const url = URL.createObjectURL(blob); const im = new Image(); im.src = url; try { await im.decode(); } catch(e){}
   OV = {el: im, url, id}; ST.files.ov = id; save(); $('#ovClear').hidden = false; $('#ovBtn').textContent = 'Trocar foto'; redraw();
 }
 $('#ovBtn').onclick = () => $('#ovFile').click();
-$('#ovFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; if (OV) DB.del(OV.id); const id = await storeFile(f); await setOverlay(f, id); toast('Foto adicionada'); };
-$('#ovClear').onclick = () => { if (OV) DB.del(OV.id); OV = null; ST.files.ov = null; save(); $('#ovClear').hidden = true; $('#ovBtn').textContent = 'Escolher foto'; redraw(); };
+$('#ovFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; snapshot('foto por cima'); const id = await storeFile(f); await setOverlay(f, id); toast('Foto adicionada'); };
+$('#ovClear').onclick = () => { snapshot('remover foto por cima'); OV = null; ST.files.ov = null; save(); $('#ovClear').hidden = true; $('#ovBtn').textContent = 'Escolher foto'; redraw(); };
 
 /* ---------- 5 exportar ---------- */
 function renderChecks(){
@@ -1546,9 +1654,9 @@ function pickMime(){
   return '';
 }
 let REC = null, OUT = null;
-function setRes(px){ const w = px===1080 ? 1080 : 720; cv.width = w; cv.height = Math.round(w*16/9); W = cv.width; H = cv.height; ctx = cv.getContext('2d'); }
+function setRes(px){ const w = px===1080 ? 1080 : 720; const feed = ST.style.ratio === '45'; cv.width = w; cv.height = Math.round(feed ? w*5/4 : w*16/9); cv.classList.toggle('feed', feed); cv.style.aspectRatio = feed ? '4 / 5' : '9 / 16'; W = cv.width; H = cv.height; ctx = cv.getContext('2d'); }
 $('#exportBtn').onclick = async () => {
-  if (REC){ REC.stop(); return; }
+  if (REC){ REC._canceled = true; REC.stop(); return; }
   if (typeof MediaRecorder === 'undefined' || !cv.captureStream){ $('#exportStatus').textContent = 'Este navegador não grava vídeo. No iPhone, atualize o iOS e abra no Safari.'; return; }
   stop(); const a = ac(); await a.resume(); await renderSfx();
   try { await document.fonts.load(fontStr(40)); await document.fonts.load('900 40px Montserrat'); } catch(e){}
@@ -1563,11 +1671,14 @@ $('#exportBtn').onclick = async () => {
   REC.ondataavailable = e => e.data.size && chunks.push(e.data);
   REC.onstop = () => {
     stop(); try { wl && wl.release(); } catch(e){}
+    const interrupted = REC._interrupted, canceled = REC._canceled;
     const type = REC.mimeType || mime || 'video/mp4';
     OUT = {blob: new Blob(chunks, {type}), ext: type.includes('mp4') ? 'mp4' : 'webm'};
     REC = null; P.onFrame = P.onEnd = null;
     $('#exportBtn').textContent = 'Gerar de novo'; $('#prog').hidden = true;
     setRes(720); redraw();
+    if (interrupted){ OUT = null; $('#exportStatus').textContent = 'A gravação parou porque o app saiu da tela (ou a tela apagou). Toque em "Gerar de novo" e fique no app até terminar.'; return; }
+    if (canceled){ OUT = null; $('#exportStatus').textContent = 'Gravação cancelada.'; return; }
     if (!OUT.blob.size){ $('#exportStatus').textContent = 'A gravação saiu vazia. Tente de novo com a tela ligada.'; return; }
     $('#exportStatus').textContent = `Pronto: ${+$('#res').value===1080 ? 'Full HD 1080p' : 'HD 720p'}, ${(OUT.blob.size/1048576).toFixed(1).replace('.',',')} MB, formato ${OUT.ext.toUpperCase()}.`;
     $('#outVideo').src = URL.createObjectURL(OUT.blob); $('#outBox').hidden = false; $('#saveHint').textContent = '';
@@ -1580,16 +1691,23 @@ $('#exportBtn').onclick = async () => {
   P.onEnd = () => { setTimeout(() => REC && REC.state !== 'inactive' && REC.stop(), 250); };
   play({dest});
 };
-$('#saveBtn').onclick = async () => {
-  if (!OUT) return; const name = 'vsl-' + new Date().toISOString().slice(0,16).replace(/[-:T]/g,'') + '.' + OUT.ext;
+document.addEventListener('visibilitychange', () => { if (document.hidden && REC && REC.state !== 'inactive'){ REC._interrupted = true; REC.stop(); } });
+async function saveBlob(blob, name, hint){
   if (DL){
-    try { await DL.save({filename:name, data:OUT.blob}); $('#saveHint').textContent = 'Enviado. No iPhone, escolha "Salvar vídeo" na tela que abrir.'; }
-    catch(e){ $('#saveHint').textContent = e && e.code==='declined' ? 'Você cancelou. Toque de novo para salvar.' : e && e.code==='rate_limited' ? 'Aguarde um instante e toque de novo.' : 'Não deu para salvar por aqui.'; }
+    try { await DL.save({filename:name, data:blob}); hint.textContent = 'Enviado. No iPhone, escolha "Salvar" na tela que abrir.'; }
+    catch(e){ hint.textContent = e && e.code==='declined' ? 'Você cancelou. Toque de novo para salvar.' : e && e.code==='rate_limited' ? 'Aguarde um instante e toque de novo.' : 'Não deu para salvar por aqui.'; }
     return;
   }
-  const file = new File([OUT.blob], name, {type: OUT.blob.type});
+  const file = new File([blob], name, {type: blob.type});
   if (navigator.canShare && navigator.canShare({files:[file]})){ try { await navigator.share({files:[file]}); return; } catch(e){ if (e.name==='AbortError') return; } }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(OUT.blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+$('#saveBtn').onclick = () => { if (!OUT) return; saveBlob(OUT.blob, 'vsl-' + new Date().toISOString().slice(0,16).replace(/[-:T]/g,'') + '.' + OUT.ext, $('#saveHint')); };
+$('#coverBtn').onclick = async () => {
+  if (REC) return; stop(); CLEAN = true; setRes(1080); build(); syncVideos(P.t, false); draw(P.t);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.93));
+  setRes(720); CLEAN = false; redraw();
+  if (blob) saveBlob(blob, 'capa-vsl.jpg', $('#coverHint')); else $('#coverHint').textContent = 'Não consegui gerar a imagem.';
 };
 
 /* ---------- new project ---------- */
@@ -1617,11 +1735,13 @@ async function restore(){
   return any;
 }
 if (!Array.isArray(ST.sfx)) suggestSfx();
+$('#safeBtn').setAttribute('aria-pressed', !!ST.safe); setRes(720);
 narrUI(); renderSfxList(); renderSfx().then(() => {});
 build(); draw(0); updTime();
 (async () => {
   try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); await document.fonts.load(fontStr(40)); } catch(e){}
   try { if (await restore()) toast('Projeto anterior recuperado'); } catch(e){}
+  try { const keep = new Set(); (ST.files.scenes||[]).forEach(a => (a||[]).forEach(id => keep.add(id))); ['narr','music','ov'].forEach(k => ST.files[k] && keep.add(ST.files[k])); (ST.files.sfx||[]).forEach(x => keep.add(x.id)); const ks = await DB.keys(); (ks||[]).forEach(k => { if (!keep.has(k)) DB.del(k); }); } catch(e){}
   P.t = 1.2; redraw(); renderScenes(); renderSfxList();
 })();
 })();
