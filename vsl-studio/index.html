@@ -140,7 +140,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
  <section id="home" aria-label="Projetos">
   <header>
     <h1>Estúdio <span>VSL</span></h1>
-    <span class="sub">Seus vídeos ficam salvos neste celular. Escolha um para continuar ou comece um novo.</span>
+    <span class="sub">Seus projetos ficam salvos neste celular e tudo é salvo automaticamente enquanto você edita. Escolha um para continuar ou comece um novo.</span>
   </header>
   <div class="card auto">
     <h2>+ Novo projeto</h2>
@@ -158,6 +158,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <input type="text" id="projTitle" class="ptitle" aria-label="Nome do projeto" maxlength="60">
     <button class="btn small" id="undoBtn" disabled aria-label="Desfazer">↶ Desfazer</button>
   </header>
+  <p class="hint" id="saveState" aria-live="polite">Tudo é salvo automaticamente.</p>
 
   <section class="monitor" aria-label="Prévia do vídeo">
     <canvas id="cv" width="720" height="1280"></canvas>
@@ -560,9 +561,24 @@ const PKEY = 'estudio-vsl-projects', pkey = id => 'estudio-vsl-p:' + id;
 let METAS = [], CUR = null;
 function normST(x){ const b = JSON.parse(JSON.stringify(BASE)); if (!x) return b; return {...b, ...x, style:{...DEFAULT_STYLE, ...(x.style||{})}, audio:{...DEFAULT_AUDIO, ...(x.audio||{})}, files:{...b.files, ...(x.files||{})}}; }
 let ST = normST(null);
-const saveMetas = () => lsSet(PKEY, JSON.stringify(METAS));
-let metaT;
-const save = () => { if (!CUR) return; lsSet(pkey(CUR), JSON.stringify(ST)); const m = METAS.find(x => x.id === CUR); if (m){ m.updated = Date.now(); clearTimeout(metaT); metaT = setTimeout(saveMetas, 500); } };
+// The project list is always re-read from storage before a change, so another open copy of the app can't erase projects.
+const readMetas = () => { try { const v = JSON.parse(lsGet(PKEY) || '[]'); return Array.isArray(v) ? v : []; } catch(e){ return []; } };
+function metaWrite(fn){ const list = readMetas(); fn(list); const ok = lsSet(PKEY, JSON.stringify(list)); METAS = list; return ok; }
+function metaPatch(id, patch){
+  return metaWrite(list => {
+    let m = list.find(x => x.id === id);
+    if (!m){ if (!lsGet(pkey(id))) return; m = {id, name: ($('#projTitle') && $('#projTitle').value) || 'Projeto', updated: Date.now()}; list.push(m); }
+    Object.assign(m, patch);
+  });
+}
+let lastSaveUI = 0, saveUIT;
+const save = () => {
+  if (!CUR) return;
+  const ok = lsSet(pkey(CUR), JSON.stringify(ST)) && metaPatch(CUR, {updated: Date.now()});
+  const el = document.getElementById('saveState'); if (!el) return;
+  if (!ok){ el.textContent = '⚠ Não consegui salvar: o armazenamento do navegador está cheio ou bloqueado. Apague projetos antigos.'; el.style.color = 'var(--warn)'; return; }
+  clearTimeout(saveUIT); saveUIT = setTimeout(() => { const t = new Date(); el.style.color = ''; el.textContent = '✓ Salvo automaticamente às ' + String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0'); }, 300);
+};
 
 let MEDIA = [];            // MEDIA[sceneIndex] = [{id,type,url,el,name}, ...]
 let NARR = null;           // {orig, env0, buffer, env, name, id}
@@ -1753,12 +1769,25 @@ function bindTop(){
   $('#musicFade').checked = ST.musicFade;
 }
 function loadMetas(){
-  try { METAS = JSON.parse(lsGet(PKEY) || '[]') || []; } catch(e){ METAS = []; }
+  METAS = readMetas(); const known = new Set(METAS.map(m => m.id)); const lost = [];
+  try { for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && k.indexOf('estudio-vsl-p:') === 0 && !known.has(k.slice(14))) lost.push(k.slice(14)); } } catch(e){}
   const old = lsGet('estudio-vsl-v1');
-  if (old && !METAS.length){ const id = 'p' + uid(); if (lsSet(pkey(id), old)){ METAS.push({id, name:'Meu primeiro vídeo', updated: Date.now()}); saveMetas(); lsDel('estudio-vsl-v1'); } }
+  if (!lost.length && !old) return 0;
+  let n = 0;
+  metaWrite(list => {
+    lost.forEach(id => {
+      if (list.some(x => x.id === id)) return;
+      let nm = 'Projeto recuperado';
+      try { const st = JSON.parse(lsGet(pkey(id))); const l = (st.script || '').split('\n').find(x => x.trim()); if (l) nm = l.trim().slice(0, 40); } catch(e){}
+      list.push({id, name: nm, updated: Date.now()}); n++;
+    });
+    if (old){ const id = 'p' + uid(); if (lsSet(pkey(id), old)){ list.push({id, name: list.length ? 'Projeto recuperado' : 'Meu primeiro vídeo', updated: Date.now()}); lsDel('estudio-vsl-v1'); if (list.length > 1) n++; } }
+  });
+  return n;
 }
 const ago = ts => { const d = (Date.now() - ts)/1000; if (d < 60) return 'editado agora'; if (d < 3600) return 'editado há ' + Math.floor(d/60) + ' min'; if (d < 86400) return 'editado há ' + Math.floor(d/3600) + ' h'; if (d < 172800) return 'editado ontem'; const t = new Date(ts); return 'editado em ' + String(t.getDate()).padStart(2,'0') + '/' + String(t.getMonth()+1).padStart(2,'0'); };
 function renderHome(){
+  METAS = readMetas();
   const box = $('#projList'); box.innerHTML = '';
   const list = METAS.slice().sort((a,b) => b.updated - a.updated);
   $('#homeEmpty').hidden = !!list.length;
@@ -1776,34 +1805,34 @@ function renderHome(){
     mk('Renomear', '', () => {
       const inp = document.createElement('input'); inp.type = 'text'; inp.value = m.name; inp.maxLength = 60; inp.setAttribute('aria-label', 'Novo nome');
       nm.replaceWith(inp); inp.focus(); inp.select();
-      const done = () => { const v = inp.value.trim(); if (v) m.name = v; saveMetas(); renderHome(); };
+      const done = () => { const v = inp.value.trim(); if (v) metaPatch(m.id, {name: v}); renderHome(); };
       inp.onblur = done; inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
     });
     mk('Duplicar', '', () => {
       const id = 'p' + uid(); const raw = lsGet(pkey(m.id));
       if (!raw || !lsSet(pkey(id), raw)){ toast('Não consegui duplicar: pouco espaço'); return; }
-      METAS.push({...m, id, name: m.name + ' (cópia)', updated: Date.now()}); saveMetas(); renderHome(); toast('Projeto duplicado');
+      metaWrite(list => list.push({...m, id, name: m.name + ' (cópia)', updated: Date.now()})); renderHome(); toast('Projeto duplicado');
     });
     let armed = 0; const del = mk('Apagar', 'danger', () => {
       if (Date.now() - armed > 4000){ armed = Date.now(); del.textContent = 'Toque de novo para apagar'; setTimeout(() => { del.textContent = 'Apagar'; }, 4000); return; }
-      METAS = METAS.filter(x => x.id !== m.id); lsDel(pkey(m.id)); saveMetas(); renderHome(); gc(); toast('Projeto apagado');
+      lsDel(pkey(m.id)); metaWrite(list => { const k = list.findIndex(x => x.id === m.id); if (k >= 0) list.splice(k, 1); }); renderHome(); gc(); toast('Projeto apagado');
     });
     info.append(nm, meta, acts); card.append(th, info); box.appendChild(card);
   });
 }
 function captureThumb(){
   try {
-    const m = METAS.find(x => x.id === CUR); if (!m) return;
+    if (!CUR) return;
     build(); draw(Math.min(TM.total*0.2, 2.5));
     const c = document.createElement('canvas'); c.width = 108; c.height = Math.round(108*cv.height/cv.width);
     c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
-    m.thumb = c.toDataURL('image/jpeg', 0.7); m.dur = TM.total; m.scenes = lines().length;
+    metaPatch(CUR, {thumb: c.toDataURL('image/jpeg', 0.7), dur: TM.total, scenes: lines().length});
     draw(P.t);
   } catch(e){}
 }
 let OPEN_TOK = 0;
 async function openProject(id){
-  const m = METAS.find(x => x.id === id); if (!m) return;
+  METAS = readMetas(); const m = METAS.find(x => x.id === id); if (!m){ toast('Esse projeto não existe mais'); renderHome(); return; }
   const tok = ++OPEN_TOK; stop(); CUR = id;
   let raw = null; try { raw = JSON.parse(lsGet(pkey(id)) || 'null'); } catch(e){}
   ST = normST(raw);
@@ -1817,24 +1846,26 @@ async function openProject(id){
   try { await restore(); } catch(e){}
   if (tok !== OPEN_TOK) return;
   P.t = Math.min(1.2, TM.total); redraw(); renderScenes(); renderSfxList(); renderChecks();
-  if (!raw) save(); saveMetas();
+  if (!raw) save();
+  $('#saveState').style.color = ''; $('#saveState').textContent = 'Tudo é salvo automaticamente.';
+  setTimeout(captureThumb, 1500);
 }
 function goHome(){
   if (REC){ toast('Espere a exportação terminar'); return; }
   stop(); if (SYNC) $('#syncCancel').click();
-  if (CUR){ captureThumb(); save(); saveMetas(); }
+  if (CUR){ captureThumb(); save(); }
   CUR = null; OPEN_TOK++; renderHome(); $('#editor').hidden = true; $('#home').hidden = false; window.scrollTo(0, 0);
 }
 function createProject(){
   const name = $('#newName').value.trim() || ('Vídeo ' + (METAS.length + 1));
   const id = 'p' + uid();
   if (!lsSet(pkey(id), JSON.stringify(normST(null)))){ toast('Não consegui criar: o navegador bloqueou o armazenamento'); return; }
-  METAS.push({id, name, updated: Date.now()}); saveMetas(); $('#newName').value = ''; openProject(id);
+  metaWrite(list => list.push({id, name, updated: Date.now()})); $('#newName').value = ''; openProject(id);
 }
 async function gc(){
   try {
-    if (!METAS.length) return; const keep = new Set();
-    for (const m of METAS){
+    const all = readMetas(); if (!all.length) return; const keep = new Set();
+    for (const m of all){
       const raw = lsGet(pkey(m.id)); if (!raw) return; const F = (JSON.parse(raw).files) || {};
       (F.scenes||[]).forEach(a => (a||[]).forEach(id => keep.add(id))); ['narr','music','ov'].forEach(k => F[k] && keep.add(F[k])); (F.sfx||[]).forEach(x => keep.add(x.id));
     }
@@ -1844,7 +1875,9 @@ async function gc(){
 $('#createBtn').onclick = createProject;
 $('#newName').onkeydown = e => { if (e.key === 'Enter') createProject(); };
 $('#homeBtn').onclick = goHome;
-$('#projTitle').onchange = () => { const m = METAS.find(x => x.id === CUR); const v = $('#projTitle').value.trim(); if (m && v){ m.name = v; saveMetas(); toast('Nome salvo'); } else if (m) $('#projTitle').value = m.name; };
+$('#projTitle').onchange = () => { const v = $('#projTitle').value.trim(); if (v){ metaPatch(CUR, {name: v}); toast('Nome salvo'); } else { const m = readMetas().find(x => x.id === CUR); if (m) $('#projTitle').value = m.name; } };
+window.addEventListener('storage', e => { if (e.key === PKEY && !$('#home').hidden) renderHome(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#home').hidden) renderHome(); });
 $('#projTitle').onkeydown = e => { if (e.key === 'Enter') $('#projTitle').blur(); };
 
 /* ---------- boot: restore files saved on this phone ---------- */
@@ -1862,7 +1895,7 @@ async function restore(){
   return any;
 }
 renderSfx().then(() => {});
-loadMetas(); renderHome(); setRes(720);
+{ const rec = loadMetas(); renderHome(); setRes(720); if (rec) setTimeout(() => toast(rec === 1 ? '1 projeto recuperado' : rec + ' projetos recuperados'), 600); }
 (async () => {
   try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); } catch(e){}
   gc();
