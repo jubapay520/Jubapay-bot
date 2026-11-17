@@ -111,6 +111,18 @@ ol.prog li.ok::before{background:var(--go);border-color:var(--go)}
 .hdr-actions{display:flex;gap:6px}
 #safeBtn[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .th{cursor:pointer}
+#home,#editor{display:flex;flex-direction:column;gap:14px}
+.plist{display:flex;flex-direction:column;gap:10px}
+.pcard{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.pthumb{width:64px;aspect-ratio:9/16;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--bg);padding:0;cursor:pointer;color:var(--mute);font-size:20px;display:grid;place-items:center}
+.pthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pinfo{display:flex;flex-direction:column;gap:6px;min-width:0}
+.pname{background:none;border:0;padding:0;color:var(--fg);text-align:left;cursor:pointer;font:800 16px/1.25 var(--display);text-transform:uppercase;word-break:break-word}
+.pmeta{color:var(--mute);font-size:12.5px;font-variant-numeric:tabular-nums}
+.empty{color:var(--mute);font-size:14px;text-align:center;padding:24px 12px;border:1px dashed var(--line);border-radius:14px}
+.ehdr{display:flex;gap:8px;align-items:center}
+.ptitle{flex:1;min-width:0;background:transparent!important;border:1px solid transparent!important;font:800 16px var(--display)!important;text-transform:uppercase;padding:8px!important}
+.ptitle:focus{border-color:var(--line)!important}
 .check{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px}
 .check input{width:20px;height:20px;accent-color:var(--accent);flex:none}
 input[type=color]{width:100%;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:4px}
@@ -125,13 +137,26 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
 </style>
 
 <div class="wrap">
+ <section id="home" aria-label="Projetos">
   <header>
     <h1>Estúdio <span>VSL</span></h1>
-    <div class="hdr-actions">
-      <button class="btn small" id="undoBtn" disabled>↶ Desfazer</button>
-      <button class="btn small" id="newProj">Novo projeto</button>
-    </div>
-    <span class="sub">Roteiro, fotos e narração viram vídeo 9:16 em Full HD com legenda sincronizada. Tudo fica salvo neste celular.</span>
+    <span class="sub">Seus vídeos ficam salvos neste celular. Escolha um para continuar ou comece um novo.</span>
+  </header>
+  <div class="card auto">
+    <h2>+ Novo projeto</h2>
+    <label class="f">Nome do vídeo<input type="text" id="newName" placeholder="Ex.: Sinais escondidos, versão 2" maxlength="60"></label>
+    <button class="btn primary wide" id="createBtn">Criar e começar a editar</button>
+  </div>
+  <h2>Seus projetos</h2>
+  <div class="plist" id="projList"></div>
+  <p class="empty" id="homeEmpty" hidden>Nenhum projeto ainda. Dê um nome acima e toque em Criar.</p>
+ </section>
+
+ <div id="editor" hidden>
+  <header class="ehdr">
+    <button class="btn small" id="homeBtn">← Projetos</button>
+    <input type="text" id="projTitle" class="ptitle" aria-label="Nome do projeto" maxlength="60">
+    <button class="btn small" id="undoBtn" disabled aria-label="Desfazer">↶ Desfazer</button>
   </header>
 
   <section class="monitor" aria-label="Prévia do vídeo">
@@ -417,6 +442,7 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
       <p class="hint" id="saveHint"></p>
     </div>
   </section>
+ </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -527,9 +553,16 @@ const DEFAULT_STYLE = {mode:'type', font:'montserrat', bg:'stroke', upper:true, 
   ovPos:'cta', ovSize:18, ovRound:true, sfxVisual:true, ctaY:58, ratio:'916'};
 const DEFAULT_AUDIO = {trimStart:0, trimEnd:0, shortPauses:false, maxPause:0.4, speed:1, extraPause:0};
 const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], moods:[], hold:[], fy:{}, anchors:null, safe:false, genMusic:false, sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
-let ST = JSON.parse(JSON.stringify(BASE));
-try { const s = JSON.parse(localStorage.getItem('estudio-vsl-v1')||'null'); if (s) ST = {...ST, ...s, style:{...DEFAULT_STYLE, ...(s.style||{})}, audio:{...DEFAULT_AUDIO, ...(s.audio||{})}, files:{...BASE.files, ...(s.files||{})}}; } catch(e){}
-const save = () => { try { localStorage.setItem('estudio-vsl-v1', JSON.stringify(ST)); } catch(e){} };
+const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch(e){ return false; } };
+const lsDel = k => { try { localStorage.removeItem(k); } catch(e){} };
+const PKEY = 'estudio-vsl-projects', pkey = id => 'estudio-vsl-p:' + id;
+let METAS = [], CUR = null;
+function normST(x){ const b = JSON.parse(JSON.stringify(BASE)); if (!x) return b; return {...b, ...x, style:{...DEFAULT_STYLE, ...(x.style||{})}, audio:{...DEFAULT_AUDIO, ...(x.audio||{})}, files:{...b.files, ...(x.files||{})}}; }
+let ST = normST(null);
+const saveMetas = () => lsSet(PKEY, JSON.stringify(METAS));
+let metaT;
+const save = () => { if (!CUR) return; lsSet(pkey(CUR), JSON.stringify(ST)); const m = METAS.find(x => x.id === CUR); if (m){ m.updated = Date.now(); clearTimeout(metaT); metaT = setTimeout(saveMetas, 500); } };
 
 let MEDIA = [];            // MEDIA[sceneIndex] = [{id,type,url,el,name}, ...]
 let NARR = null;           // {orig, env0, buffer, env, name, id}
@@ -744,7 +777,7 @@ function undo(){
   const u = UNDO.pop(); if (!u) return; stop();
   ST = JSON.parse(u.st); MEDIA = u.media; NARR = u.narr; MUSIC = u.music; OV = u.ov;
   if (NARR) processNarr();
-  save(); $('#script').value = ST.script; bindStyle(); narrUI(); musicUI(); ovUI(); renderGalleries(); renderScenes(); renderSfxList(); redraw();
+  save(); $('#script').value = ST.script; bindStyle(); bindTop(); narrUI(); musicUI(); ovUI(); renderGalleries(); renderScenes(); renderSfxList(); redraw();
   toast('Desfeito: ' + u.label); $('#undoBtn').disabled = !UNDO.length;
 }
 const narrSig = n => [ST.files.narr, ST.audio.trimStart, ST.audio.trimEnd, ST.audio.shortPauses, ST.audio.maxPause, ST.audio.speed, ST.audio.extraPause, n].join('|');
@@ -1431,7 +1464,7 @@ function drawWave(){
   TM.scenes.forEach((s,i) => { const x = s.start/T*w; g.fillStyle = '#EDF0F6'; g.fillRect(x, 0, 2, h); g.fillText(String(i+1), x+5, 4); });
 }
 $('#wave').onclick = e => { const r = e.target.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*TM.total); };
-const bindSlider = (id, key, outId, f, obj=ST) => { const el = $(id); el.value = obj[key]; const o = $(outId); const upd = () => { o.textContent = f(+el.value); }; upd(); el.oninput = () => { obj[key] = +el.value; upd(); save(); redraw(); }; };
+const bindSlider = (id, key, outId, f, obj) => { const T = () => obj || ST; const el = $(id); el.value = T()[key]; const o = $(outId); const upd = () => { o.textContent = f(+el.value); }; upd(); el.oninput = () => { T()[key] = +el.value; upd(); save(); redraw(); }; };
 bindSlider('#offset','offset','#offOut', v => (v>0?'+':'')+num(v)+' s');
 bindSlider('#rate','rate','#rateOut', v => num(v,1));
 bindSlider('#narrVol','narrVol','#nvOut', v => Math.round(v*100)+'%');
@@ -1710,15 +1743,109 @@ $('#coverBtn').onclick = async () => {
   if (blob) saveBlob(blob, 'capa-vsl.jpg', $('#coverHint')); else $('#coverHint').textContent = 'Não consegui gerar a imagem.';
 };
 
-/* ---------- new project ---------- */
-let confirmNew = 0;
-$('#newProj').onclick = async () => {
-  if (Date.now() - confirmNew > 4000){ confirmNew = Date.now(); $('#newProj').textContent = 'Toque de novo para apagar tudo'; setTimeout(() => $('#newProj').textContent = 'Novo projeto', 4000); return; }
-  stop(); await DB.clear(); MEDIA = []; NARR = null; MUSIC = null; OV = null;
-  ST = JSON.parse(JSON.stringify(BASE)); suggestSfx(); save(); sc.value = ST.script;
-  bindStyle(); narrUI(); $('#musicInfo').textContent='Sem música'; $('#musicInfo').className='pill'; $('#musicClear').hidden=true; $('#ovClear').hidden = true;
-  $('#newProj').textContent = 'Novo projeto'; P.t = 0; redraw(); renderScenes(); toast('Projeto novo');
-};
+/* ---------- projects ---------- */
+function bindTop(){
+  bindSlider('#offset','offset','#offOut', v => (v>0?'+':'')+num(v)+' s');
+  bindSlider('#rate','rate','#rateOut', v => num(v,1));
+  bindSlider('#narrVol','narrVol','#nvOut', v => Math.round(v*100)+'%');
+  bindSlider('#musicVol','musicVol','#mvOut', v => Math.round(v*100)+'%');
+  bindSlider('#sfxVol','sfxVol','#sfxVolOut', v => Math.round(v*100)+'%');
+  $('#musicFade').checked = ST.musicFade;
+}
+function loadMetas(){
+  try { METAS = JSON.parse(lsGet(PKEY) || '[]') || []; } catch(e){ METAS = []; }
+  const old = lsGet('estudio-vsl-v1');
+  if (old && !METAS.length){ const id = 'p' + uid(); if (lsSet(pkey(id), old)){ METAS.push({id, name:'Meu primeiro vídeo', updated: Date.now()}); saveMetas(); lsDel('estudio-vsl-v1'); } }
+}
+const ago = ts => { const d = (Date.now() - ts)/1000; if (d < 60) return 'editado agora'; if (d < 3600) return 'editado há ' + Math.floor(d/60) + ' min'; if (d < 86400) return 'editado há ' + Math.floor(d/3600) + ' h'; if (d < 172800) return 'editado ontem'; const t = new Date(ts); return 'editado em ' + String(t.getDate()).padStart(2,'0') + '/' + String(t.getMonth()+1).padStart(2,'0'); };
+function renderHome(){
+  const box = $('#projList'); box.innerHTML = '';
+  const list = METAS.slice().sort((a,b) => b.updated - a.updated);
+  $('#homeEmpty').hidden = !!list.length;
+  list.forEach(m => {
+    const card = document.createElement('div'); card.className = 'pcard';
+    const th = document.createElement('button'); th.className = 'pthumb'; th.setAttribute('aria-label', 'Abrir ' + m.name);
+    if (m.thumb){ const im = new Image(); im.src = m.thumb; im.alt = ''; th.appendChild(im); } else th.textContent = '▶';
+    th.onclick = () => openProject(m.id);
+    const info = document.createElement('div'); info.className = 'pinfo';
+    const nm = document.createElement('button'); nm.className = 'pname'; nm.textContent = m.name; nm.onclick = () => openProject(m.id);
+    const meta = document.createElement('div'); meta.className = 'pmeta'; meta.textContent = [ago(m.updated), m.scenes ? m.scenes + ' cenas' : '', m.dur ? fmt(m.dur) : ''].filter(Boolean).join(' · ');
+    const acts = document.createElement('div'); acts.className = 'row';
+    const mk = (txt, cls, fn) => { const b = document.createElement('button'); b.className = 'btn small ' + cls; b.textContent = txt; b.onclick = fn; acts.appendChild(b); return b; };
+    mk('Abrir', 'primary', () => openProject(m.id));
+    mk('Renomear', '', () => {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.value = m.name; inp.maxLength = 60; inp.setAttribute('aria-label', 'Novo nome');
+      nm.replaceWith(inp); inp.focus(); inp.select();
+      const done = () => { const v = inp.value.trim(); if (v) m.name = v; saveMetas(); renderHome(); };
+      inp.onblur = done; inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
+    });
+    mk('Duplicar', '', () => {
+      const id = 'p' + uid(); const raw = lsGet(pkey(m.id));
+      if (!raw || !lsSet(pkey(id), raw)){ toast('Não consegui duplicar: pouco espaço'); return; }
+      METAS.push({...m, id, name: m.name + ' (cópia)', updated: Date.now()}); saveMetas(); renderHome(); toast('Projeto duplicado');
+    });
+    let armed = 0; const del = mk('Apagar', 'danger', () => {
+      if (Date.now() - armed > 4000){ armed = Date.now(); del.textContent = 'Toque de novo para apagar'; setTimeout(() => { del.textContent = 'Apagar'; }, 4000); return; }
+      METAS = METAS.filter(x => x.id !== m.id); lsDel(pkey(m.id)); saveMetas(); renderHome(); gc(); toast('Projeto apagado');
+    });
+    info.append(nm, meta, acts); card.append(th, info); box.appendChild(card);
+  });
+}
+function captureThumb(){
+  try {
+    const m = METAS.find(x => x.id === CUR); if (!m) return;
+    build(); draw(Math.min(TM.total*0.2, 2.5));
+    const c = document.createElement('canvas'); c.width = 108; c.height = Math.round(108*cv.height/cv.width);
+    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+    m.thumb = c.toDataURL('image/jpeg', 0.7); m.dur = TM.total; m.scenes = lines().length;
+    draw(P.t);
+  } catch(e){}
+}
+let OPEN_TOK = 0;
+async function openProject(id){
+  const m = METAS.find(x => x.id === id); if (!m) return;
+  const tok = ++OPEN_TOK; stop(); CUR = id;
+  let raw = null; try { raw = JSON.parse(lsGet(pkey(id)) || 'null'); } catch(e){}
+  ST = normST(raw);
+  MEDIA = []; NARR = null; MUSIC = null; OV = null; UNDO.length = 0; $('#undoBtn').disabled = true; P.t = 0; OUT = null;
+  $('#outBox').hidden = true; $('#exportStatus').textContent = ''; $('#autoNext').hidden = true; $('#autoSteps').hidden = true; $('#hookList').innerHTML = '';
+  if (!Array.isArray(ST.sfx)) suggestSfx();
+  $('#projTitle').value = m.name; sc.value = ST.script;
+  bindStyle(); bindTop(); narrUI(); musicUI(); ovUI(); $('#safeBtn').setAttribute('aria-pressed', !!ST.safe);
+  $('#home').hidden = true; $('#editor').hidden = false; $('nav.steps button[data-tab=roteiro]').click(); setRes(720);
+  build(); draw(0); updTime(); window.scrollTo(0, 0);
+  try { await restore(); } catch(e){}
+  if (tok !== OPEN_TOK) return;
+  P.t = Math.min(1.2, TM.total); redraw(); renderScenes(); renderSfxList(); renderChecks();
+  if (!raw) save(); saveMetas();
+}
+function goHome(){
+  if (REC){ toast('Espere a exportação terminar'); return; }
+  stop(); if (SYNC) $('#syncCancel').click();
+  if (CUR){ captureThumb(); save(); saveMetas(); }
+  CUR = null; OPEN_TOK++; renderHome(); $('#editor').hidden = true; $('#home').hidden = false; window.scrollTo(0, 0);
+}
+function createProject(){
+  const name = $('#newName').value.trim() || ('Vídeo ' + (METAS.length + 1));
+  const id = 'p' + uid();
+  if (!lsSet(pkey(id), JSON.stringify(normST(null)))){ toast('Não consegui criar: o navegador bloqueou o armazenamento'); return; }
+  METAS.push({id, name, updated: Date.now()}); saveMetas(); $('#newName').value = ''; openProject(id);
+}
+async function gc(){
+  try {
+    if (!METAS.length) return; const keep = new Set();
+    for (const m of METAS){
+      const raw = lsGet(pkey(m.id)); if (!raw) return; const F = (JSON.parse(raw).files) || {};
+      (F.scenes||[]).forEach(a => (a||[]).forEach(id => keep.add(id))); ['narr','music','ov'].forEach(k => F[k] && keep.add(F[k])); (F.sfx||[]).forEach(x => keep.add(x.id));
+    }
+    const ks = await DB.keys(); (ks||[]).forEach(k => { if (!keep.has(k)) DB.del(k); });
+  } catch(e){}
+}
+$('#createBtn').onclick = createProject;
+$('#newName').onkeydown = e => { if (e.key === 'Enter') createProject(); };
+$('#homeBtn').onclick = goHome;
+$('#projTitle').onchange = () => { const m = METAS.find(x => x.id === CUR); const v = $('#projTitle').value.trim(); if (m && v){ m.name = v; saveMetas(); toast('Nome salvo'); } else if (m) $('#projTitle').value = m.name; };
+$('#projTitle').onkeydown = e => { if (e.key === 'Enter') $('#projTitle').blur(); };
 
 /* ---------- boot: restore files saved on this phone ---------- */
 async function restore(){
@@ -1734,15 +1861,11 @@ async function restore(){
   for (const x of (F.sfx||[])){ const r = await DB.get(x.id); if (r) await addCustomSfx(r.blob, x.name, x.id); }
   return any;
 }
-if (!Array.isArray(ST.sfx)) suggestSfx();
-$('#safeBtn').setAttribute('aria-pressed', !!ST.safe); setRes(720);
-narrUI(); renderSfxList(); renderSfx().then(() => {});
-build(); draw(0); updTime();
+renderSfx().then(() => {});
+loadMetas(); renderHome(); setRes(720);
 (async () => {
-  try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); await document.fonts.load(fontStr(40)); } catch(e){}
-  try { if (await restore()) toast('Projeto anterior recuperado'); } catch(e){}
-  try { const keep = new Set(); (ST.files.scenes||[]).forEach(a => (a||[]).forEach(id => keep.add(id))); ['narr','music','ov'].forEach(k => ST.files[k] && keep.add(ST.files[k])); (ST.files.sfx||[]).forEach(x => keep.add(x.id)); const ks = await DB.keys(); (ks||[]).forEach(k => { if (!keep.has(k)) DB.del(k); }); } catch(e){}
-  P.t = 1.2; redraw(); renderScenes(); renderSfxList();
+  try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); } catch(e){}
+  gc();
 })();
 })();
 </script>
