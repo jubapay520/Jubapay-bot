@@ -425,8 +425,13 @@ details>.body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
     <details>
       <summary>Imagens e transições</summary>
       <div class="body">
-        <label class="check"><input type="checkbox" id="kenburns"> Zoom lento nas fotos</label>
-        <div class="slider"><span>Transição entre fotos</span><output id="fadeOut"></output><input type="range" id="fade" min="0" max="0.8" step="0.05"></div>
+        <p class="hint">Cada cena pode ter seu próprio movimento de câmera e sua entrada (escolha na aba Cenas). Ou deixe o app escolher pelo clima e pelos efeitos sonoros.</p>
+        <div class="row">
+          <button class="btn primary grow" id="motionAuto">Sugerir movimentos e entradas</button>
+          <button class="btn grow" id="motionReset">Tudo no automático</button>
+        </div>
+        <label class="check"><input type="checkbox" id="kenburns"> Zoom lento nas fotos (movimento automático)</label>
+        <div class="slider"><span>Dissolver entre fotos (entrada padrão)</span><output id="fadeOut"></output><input type="range" id="fade" min="0" max="0.8" step="0.05"></div>
         <label class="check"><input type="checkbox" id="vidSound"> Usar o som dos vídeos das cenas</label>
       </div>
     </details>
@@ -563,7 +568,7 @@ const DEFAULT_STYLE = {mode:'type', font:'montserrat', bg:'stroke', upper:true, 
   icon:'whats', arrow:'chev', anim:'cascade', arrowN:5, iconSz:8.5,
   ovPos:'cta', ovSize:18, ovRound:true, sfxVisual:true, ctaY:58, ratio:'916'};
 const DEFAULT_AUDIO = {trimStart:0, trimEnd:0, shortPauses:false, maxPause:0.4, speed:1, extraPause:0};
-const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], moods:[], hold:[], fy:{}, anchors:null, safe:false, genMusic:false, sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
+const BASE = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, audio:{...DEFAULT_AUDIO}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, musicFade:true, prompts:[], moods:[], hold:[], motion:[], trans:[], fy:{}, anchors:null, safe:false, genMusic:false, sfx:null, sfxVol:0.9, files:{scenes:[], narr:null, music:null, ov:null, sfx:[]}};
 const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch(e){ return false; } };
 const lsDel = k => { try { localStorage.removeItem(k); } catch(e){} };
@@ -808,7 +813,7 @@ function undo(){
   toast('Desfeito: ' + u.label); $('#undoBtn').disabled = !UNDO.length;
 }
 const narrSig = n => [ST.files.narr, ST.audio.trimStart, ST.audio.trimEnd, ST.audio.shortPauses, ST.audio.maxPause, ST.audio.speed, ST.audio.extraPause, n].join('|');
-const sceneArrays = () => { if (!Array.isArray(ST.moods)) ST.moods = []; if (!Array.isArray(ST.sfx)) ST.sfx = []; if (!Array.isArray(ST.hold)) ST.hold = []; return [MEDIA, ST.prompts, ST.sfx, ST.moods, ST.hold]; };
+const sceneArrays = () => { if (!Array.isArray(ST.moods)) ST.moods = []; if (!Array.isArray(ST.sfx)) ST.sfx = []; if (!Array.isArray(ST.hold)) ST.hold = []; if (!Array.isArray(ST.motion)) ST.motion = []; if (!Array.isArray(ST.trans)) ST.trans = []; return [MEDIA, ST.prompts, ST.sfx, ST.moods, ST.hold, ST.motion, ST.trans]; };
 function spliceScenes(i, del, add){ const n = lines().length; sceneArrays().forEach(arr => { while (arr.length < n) arr.push(arr === MEDIA ? [] : ''); const removed = arr.splice(i, del, ...Array.from({length:add}, () => arr === MEDIA ? [] : '')); }); }
 
 /* ---------- timing ---------- */
@@ -893,21 +898,57 @@ function build(){
 function cover(src, sw, sh, rx, ry, rw, rh, scale, pan, fy = 0.4){
   if (!sw || !sh) return;
   const r = Math.max(rw/sw, rh/sh)*scale, dw = sw*r, dh = sh*r;
-  ctx.drawImage(src, rx + (rw-dw)/2 + pan*(dw-rw)/2, ry + (rh-dh)*fy, dw, dh);
+  ctx.drawImage(src, rx + (rw-dw)/2 + pan*(dw-rw)/2, ry + (rh-dh)*Math.min(1, Math.max(0, fy)), dw, dh);
 }
-function drawShot(sh, t, alpha){
+const MOTIONS = [['auto','Automático'],['zoomin','Zoom lento para dentro'],['zoomout','Zoom lento para fora'],['punch','Zoom rápido (impacto)'],['left','Deslizar para a esquerda'],['right','Deslizar para a direita'],['up','Subir a câmera'],['shake','Câmera na mão (tremor leve)'],['pulse','Batida de coração'],['still','Parado']];
+const TRANSITIONS = [['auto','Entrada padrão'],['fade','Dissolver'],['cut','Corte seco'],['flash','Flash branco'],['slide','Empurrar para o lado'],['zoom','Zoom de entrada'],['black','Passar pelo preto']];
+// returns {sc, pan, dy, rot} for a shot at time t
+function motionOf(sh, t, p){
+  const mo = ((ST.motion || [])[sh.i]) || 'auto', d = t - sh.start;
+  switch (mo){
+    case 'zoomin': return {sc: 1.02 + 0.13*p, pan: 0, dy: 0, rot: 0};
+    case 'zoomout': return {sc: 1.15 - 0.13*p, pan: 0, dy: 0, rot: 0};
+    case 'punch': { const k = Math.min(1, Math.max(0, d/0.4)), e = 1 - Math.pow(1-k, 3); return {sc: 1.3 - 0.22*e + 0.05*p, pan: 0, dy: 0, rot: 0}; }
+    case 'left': return {sc: 1.18, pan: 0.6 - 1.2*p, dy: 0, rot: 0};
+    case 'right': return {sc: 1.18, pan: -0.6 + 1.2*p, dy: 0, rot: 0};
+    case 'up': return {sc: 1.18, pan: 0, dy: 0.35 - 0.7*p, rot: 0};
+    case 'shake': return {sc: 1.1, pan: Math.sin(t*2.1)*0.14 + Math.sin(t*5.3)*0.06, dy: Math.cos(t*1.7)*0.08 + Math.sin(t*4.1)*0.03, rot: Math.sin(t*1.3)*0.007};
+    case 'pulse': { const b = (t*1.2) % 1; return {sc: 1.05 + 0.04*Math.exp(-b*9) + (b > 0.22 ? 0.025*Math.exp(-(b-0.22)*9) : 0), pan: 0, dy: 0, rot: 0}; }
+    case 'still': return {sc: 1, pan: 0, dy: 0, rot: 0};
+    default:
+      if (!ST.style.kenburns) return {sc: 1, pan: 0, dy: 0, rot: 0};
+      return {sc: sh.k%2 ? 1.1 - 0.08*p : 1.02 + 0.08*p, pan: (sh.k%3===0 ? -0.25 : sh.k%3===1 ? 0.25 : 0) * (p-0.5), dy: 0, rot: 0};
+  }
+}
+function drawShot(sh, t, alpha, ox = 0, xs = 1){
   if (!sh) return;
   const mh = H*ST.style.mediaH/100, m = sh.m;
   ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.rect(0,0,W,mh); ctx.clip();
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   const p = Math.min(1, Math.max(0,(t-sh.start)/Math.max(0.5, sh.end-sh.start)));
-  const kb = ST.style.kenburns ? (sh.k%2 ? 1.1 - 0.08*p : 1.02 + 0.08*p) : 1;
-  const pan = ST.style.kenburns ? (sh.k%3===0 ? -0.25 : sh.k%3===1 ? 0.25 : 0) * (p-0.5) : 0;
-  const fy = m && ST.fy && ST.fy[m.id] != null ? ST.fy[m.id] : 0.4;
-  if (m && m.type==='img') cover(m.el, m.el.naturalWidth, m.el.naturalHeight, 0,0,W,mh, kb, pan, fy);
-  else if (m && m.type==='vid' && m.el.readyState >= 2) cover(m.el, m.el.videoWidth, m.el.videoHeight, 0,0,W,mh, 1, 0, fy);
+  const mv = motionOf(sh, t, p);
+  if (ox || xs !== 1 || mv.rot){ ctx.translate(W/2 + ox, mh/2); ctx.rotate(mv.rot); ctx.scale(xs, xs); ctx.translate(-W/2, -mh/2); }
+  const fy = (m && ST.fy && ST.fy[m.id] != null ? ST.fy[m.id] : 0.4) + mv.dy;
+  if (m && m.type==='img') cover(m.el, m.el.naturalWidth, m.el.naturalHeight, 0,0,W,mh, mv.sc, mv.pan, fy);
+  else if (m && m.type==='vid' && m.el.readyState >= 2) cover(m.el, m.el.videoWidth, m.el.videoHeight, 0,0,W,mh, Math.max(1, mv.sc), mv.pan*0.5, fy);
   else drawMood(sh, t, mh);
   ctx.restore();
+}
+const ease = q => q < 0.5 ? 2*q*q : 1 - Math.pow(-2*q + 2, 2)/2;
+function drawShots(t){
+  const SH = TM.shots; let k = 0; for (let q=0;q<SH.length;q++) if (t >= SH[q].start) k = q;
+  const cur = SH[k], prev = SH[k-1], since = t - cur.start, mh = H*ST.style.mediaH/100;
+  let tr = cur.j === 0 ? (((ST.trans || [])[cur.i]) || 'auto') : 'auto';
+  if (tr === 'auto') tr = ST.style.fade > 0 ? 'fade' : 'cut';
+  const td = tr === 'fade' ? ST.style.fade : tr === 'flash' ? 0.35 : tr === 'black' ? 0.6 : 0.45;
+  if (!prev || tr === 'cut' || since >= td){ drawShot(cur, t, 1); return; }
+  const q = Math.min(1, Math.max(0, since/td)), e = ease(q);
+  if (tr === 'fade'){ drawShot(prev, t, 1); drawShot(cur, t, q); }
+  else if (tr === 'flash'){ drawShot(cur, t, 1); ctx.save(); ctx.fillStyle = `rgba(255,255,255,${0.95*(1-q)})`; ctx.fillRect(0, 0, W, mh); ctx.restore(); }
+  else if (tr === 'slide'){ drawShot(prev, t, 1, -e*W); drawShot(cur, t, 1, (1-e)*W); }
+  else if (tr === 'zoom'){ drawShot(prev, t, 1, 0, 1 + 0.25*e); drawShot(cur, t, e, 0, 1 + 0.35*(1-e)); }
+  else if (tr === 'black'){ if (q < 0.5) drawShot(prev, t, 1 - q*2); else drawShot(cur, t, (q-0.5)*2); }
+  else drawShot(cur, t, 1);
 }
 const MOODS = {triste:['#06101f','#1d3a5e','#7fb2ff'], tenso:['#140404','#4d0d0d','#ff4a3d'], romantico:['#170510','#5e1431','#ff7aa8'], esperanca:['#140c03','#6e4210','#ffd27a'], misterio:['#0a0614','#341b58','#b48cff'], urgente:['#160802','#6e2504','#ff8a1f']};
 const MOOD_KEYS = Object.keys(MOODS);
@@ -1126,9 +1167,7 @@ function draw(t){
   let shake = null;
   if (ST.style.sfxVisual && ST.sfx){ let si = 0; for (let q=0;q<S.length;q++) if (t >= S[q].start) si = q; const key = ST.sfx[si]; const dt = t - S[si].start; if (IMPACT[key] && dt >= 0 && dt < 0.4) shake = {dt, key}; }
   if (shake){ const amp = (1 - shake.dt/0.4)*W*0.014, z = 1 + 0.05*(1 - shake.dt/0.4); ctx.translate(W/2 + Math.sin(shake.dt*95)*amp, H*0.35 + Math.cos(shake.dt*77)*amp); ctx.scale(z, z); ctx.translate(-W/2, -H*0.35); }
-  let k = 0; for (let q=0;q<SH.length;q++) if (t >= SH[q].start) k = q;
-  const fade = ST.style.fade, since = t - SH[k].start;
-  if (k>0 && fade > 0 && since < fade){ drawShot(SH[k-1], t, 1); drawShot(SH[k], t, since/fade); } else drawShot(SH[k], t, 1);
+  drawShots(t);
   const mh = H*ST.style.mediaH/100;
   if (mh < H){ const g = ctx.createLinearGradient(0, mh*0.55, 0, mh); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,1)'); ctx.fillStyle = g; ctx.fillRect(0, mh*0.55, W, mh*0.45+1); }
   else { const g = ctx.createLinearGradient(0, H*0.45, 0, H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.75)'); ctx.fillStyle = g; ctx.fillRect(0, H*0.45, W, H*0.55); }
@@ -1357,7 +1396,10 @@ function renderScenes(){
     sfxOptions().forEach(([k, l]) => { const o = document.createElement('option'); o.value = k; o.textContent = (k ? '🔊 ' : '') + l; sel.appendChild(o); });
     sel.value = (ST.sfx && ST.sfx[i]) || '';
     sel.onchange = () => { if (!ST.sfx) ST.sfx = []; while (ST.sfx.length <= i) ST.sfx.push(''); ST.sfx[i] = sel.value; save(); previewSfx(sel.value); draw(P.t); };
-    d.append(head, ta, sel, th);
+    const mvRow = document.createElement('div'); mvRow.className = 'grid2';
+    const mkSel = (list, arr, label, icon) => { const se = document.createElement('select'); se.setAttribute('aria-label', label + ' da cena ' + (i+1)); list.forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = icon + ' ' + l; se.appendChild(o); }); se.value = (ST[arr] && ST[arr][i]) || 'auto'; se.onchange = () => { sceneArrays(); while (ST[arr].length <= i) ST[arr].push(''); ST[arr][i] = se.value === 'auto' ? '' : se.value; save(); build(); if (TM.scenes[i]) seek(TM.scenes[i].start + (arr === 'trans' ? 0 : 0.6)); if (arr === 'trans' && TM.scenes[i]){ stop(); P.t = Math.max(0, TM.scenes[i].start - 0.6); play(); setTimeout(() => { if (P.playing && !REC) stop(); }, 1800); } }; return se; };
+    mvRow.append(mkSel(MOTIONS, 'motion', 'Movimento', '🎥'), mkSel(TRANSITIONS, 'trans', 'Entrada', '✨'));
+    d.append(head, ta, sel, mvRow, th);
     if (!NARR){
       const hs = document.createElement('select'); hs.setAttribute('aria-label', 'Tempo extra na cena '+(i+1));
       [['0','Tempo normal nesta cena'],['0.5','+0,5 s nesta cena'],['1','+1 s nesta cena'],['1.5','+1,5 s nesta cena'],['2','+2 s nesta cena'],['3','+3 s nesta cena']].forEach(([v,l]) => { const o = document.createElement('option'); o.value = v; o.textContent = '⏱ ' + l; hs.appendChild(o); });
@@ -1563,7 +1605,7 @@ async function useGenMusic(){
 $('#musicGen').onclick = async () => { snapshot('gerar trilha'); $('#musicInfo').textContent = 'Gerando trilha…'; try { await useGenMusic(); toast('Trilha criada'); } catch(e){ musicUI(); toast('Não consegui gerar a trilha'); } };
 
 /* ---------- auto mode: AI does everything ---------- */
-const AUTO_STEPS = ['Escrevendo o roteiro e dividindo as cenas', 'Escolhendo o clima e os efeitos de cada cena', 'Criando os fundos animados', 'Gerando a trilha sonora', 'Montando o vídeo'];
+const AUTO_STEPS = ['Escrevendo o roteiro e dividindo as cenas', 'Escolhendo clima, efeitos e movimentos de cada cena', 'Criando os fundos animados', 'Gerando a trilha sonora', 'Montando o vídeo'];
 function stepUI(k){ const ol = $('#autoSteps'); ol.hidden = false; ol.innerHTML = ''; AUTO_STEPS.forEach((t, i) => { const li = document.createElement('li'); li.textContent = t; li.className = i < k ? 'ok' : i === k ? 'on' : ''; ol.appendChild(li); }); }
 const SFX_KEYS = () => Object.keys(SFX_DEFS);
 function guessMood(l, i, n){
@@ -1606,7 +1648,7 @@ prompt: em inglês, para gerador de imagens: foto realista cinematográfica, ver
     ST.sfx = L.map((l, i) => { const e = scenes[i] && scenes[i].efeito; return keys.includes(e) ? e : ''; });
     if (!ST.sfx.some(Boolean)) suggestSfx();
     ST.moods = L.map((l, i) => { const m = scenes[i] && scenes[i].clima; return MOODS[m] ? m : guessMood(l, i, L.length); });
-    ST.prompts = L.map((l, i) => (scenes[i] && scenes[i].prompt) || ''); ST.imgChars = $('#autoChars').value;
+    ST.prompts = L.map((l, i) => (scenes[i] && scenes[i].prompt) || ''); ST.imgChars = $('#autoChars').value; suggestMotion();
     await renderSfx();
     stepUI(2); await new Promise(r => setTimeout(r, 250));
     stepUI(3);
@@ -1709,6 +1751,15 @@ function bindStyle(){
   bindSeg('#modeSeg','mode'); bindSeg('#ratioSeg','ratio'); bindSeg('#bgSeg','bg'); bindSeg('#animSeg','anim'); bindSeg('#ovSeg','ovPos');
 }
 bindStyle();
+function moodOf(i){ const L = lines(); return (ST.moods && MOODS[ST.moods[i]]) ? ST.moods[i] : guessMood(L[i] || '', i, L.length); }
+function suggestMotion(){
+  const L = lines(), n = L.length; sceneArrays();
+  ST.motion = L.map((l, i) => { const fx = (ST.sfx || [])[i], mood = moodOf(i); if (IMPACT[fx]) return 'punch'; if (i === n-1) return 'pulse'; if (mood === 'tenso') return 'shake'; if (mood === 'triste') return 'zoomin'; if (mood === 'romantico') return 'zoomout'; if (mood === 'misterio') return 'up'; if (mood === 'urgente') return 'pulse'; return ['zoomin','left','zoomout','right'][i % 4]; });
+  ST.trans = L.map((l, i) => { const fx = (ST.sfx || [])[i]; if (i === 0) return 'cut'; if (IMPACT[fx]) return 'flash'; if (fx === 'whoosh') return 'slide'; if (fx === 'riser' || fx === 'swell') return 'zoom'; if (i === n-1) return 'black'; return 'fade'; });
+  save();
+}
+$('#motionAuto').onclick = () => { snapshot('movimentos'); suggestMotion(); redraw(); renderScenes(); toast('Movimentos escolhidos. Toque ▶ para ver'); };
+$('#motionReset').onclick = () => { snapshot('movimentos'); ST.motion = []; ST.trans = []; save(); redraw(); renderScenes(); toast('Tudo no automático'); };
 $('#resetStyle').onclick = () => { snapshot('estilo padrão'); ST.style = {...DEFAULT_STYLE}; save(); bindStyle(); renderGalleries(); redraw(); toast('Estilo padrão'); };
 async function setOverlay(blob, id){
   const url = URL.createObjectURL(blob); const im = new Image(); im.src = url; try { await im.decode(); } catch(e){}
