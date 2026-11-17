@@ -1,0 +1,760 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Estúdio VSL</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: phone-first editing bay. The 9:16 monitor sits on top, five numbered steps (a real sequence) below. Single dark look, like an editing app. */
+:root{
+  --bg:#0A0C11; --panel:#131722; --panel2:#1A2030; --line:#252C3C; --fg:#EDF0F6; --mute:#8A92A6;
+  --accent:#2F8CFF; --accent-ink:#ffffff; --go:#25D366; --go-ink:#03210F; --warn:#FFB020; --danger:#FF5C61;
+  --display:"Montserrat",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 48px}
+*{box-sizing:border-box}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:900;font-size:22px;letter-spacing:-.01em;margin:0;text-transform:uppercase}
+h1 span{color:var(--accent)}
+.sub{color:var(--mute);font-size:13px}
+h2{font-family:var(--display);font-weight:800;font-size:15px;margin:0;text-transform:uppercase;letter-spacing:.04em}
+.monitor{display:flex;flex-direction:column;gap:10px;align-items:center}
+#cv{height:min(54vh,560px);width:auto;aspect-ratio:9/16;max-width:100%;border-radius:16px;background:#000;display:block;border:1px solid var(--line)}
+.transport{display:flex;align-items:center;gap:10px;width:100%;max-width:420px}
+.transport input[type=range]{flex:1;min-width:0}
+.time{font-variant-numeric:tabular-nums;color:var(--mute);font-size:13px;min-width:86px;text-align:right}
+.round{width:46px;height:46px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;cursor:pointer;flex:none}
+.round svg{width:20px;height:20px;fill:currentColor}
+nav.steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+nav.steps button{background:var(--panel);border:1px solid var(--line);color:var(--mute);border-radius:12px;padding:8px 2px;font:600 12px var(--body);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+nav.steps button b{font-family:var(--display);font-weight:900;font-size:15px;color:var(--fg)}
+nav.steps button[aria-selected=true]{background:var(--panel2);border-color:var(--accent);color:var(--fg)}
+nav.steps button[aria-selected=true] b{color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{min-width:0}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--mute);font-weight:600}
+textarea,input[type=text],select{width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:12px;font:500 16px/1.45 var(--body)}
+textarea{min-height:230px;resize:vertical}
+textarea:focus,input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--fg);border-radius:12px;padding:11px 14px;font:700 14px var(--body);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.go{background:var(--go);border-color:var(--go);color:var(--go-ink)}
+.btn.small{padding:7px 10px;font-size:12.5px;border-radius:10px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{color:var(--mute);font-size:13px;margin:0}
+.hint b{color:var(--fg)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--mute)}
+.pill.ok{color:var(--go);border-color:color-mix(in srgb,var(--go) 40%,var(--line))}
+.pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg button{border:0;background:transparent;color:var(--mute);font:700 13px var(--body);padding:9px 4px;border-radius:9px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--panel2);color:var(--fg)}
+.slider{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;color:var(--mute);font-weight:600}
+.slider input{grid-column:1/-1;width:100%}
+.slider output{font-variant-numeric:tabular-nums;color:var(--fg)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.scenes{display:flex;flex-direction:column;gap:10px}
+.scene{display:grid;grid-template-columns:62px minmax(0,1fr);gap:12px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+.thumb{width:62px;aspect-ratio:9/16;border-radius:9px;border:1px dashed var(--line);background:var(--panel2);overflow:hidden;display:grid;place-items:center;color:var(--mute);font:800 11px var(--display);cursor:pointer;padding:0}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
+.scene .txt{font-family:var(--display);font-weight:800;font-size:13px;text-transform:uppercase;line-height:1.3;word-break:break-word}
+.scene .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.prompt{font-size:12.5px;color:var(--mute);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px;word-break:break-word}
+.wave{width:100%;height:84px;border-radius:12px;background:var(--bg);border:1px solid var(--line);display:block}
+.progress{height:10px;background:var(--bg);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+.progress i{display:block;height:100%;width:0;background:var(--go);transition:width .2s linear}
+#outVideo{width:100%;max-height:60vh;border-radius:14px;background:#000}
+.list{display:flex;flex-direction:column;gap:6px}
+.list button{text-align:left;font:600 14px var(--body);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer}
+.check{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+input[type=color]{width:100%;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:4px}
+input[type=range]{accent-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);color:var(--fg);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:reduce){.progress i{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Estúdio <span>VSL</span></h1>
+    <span class="sub">Roteiro, imagens e narração viram vídeo 9:16 com legenda sincronizada</span>
+  </header>
+
+  <section class="monitor" aria-label="Prévia do vídeo">
+    <canvas id="cv" width="720" height="1280"></canvas>
+    <div class="transport">
+      <button class="round" id="playBtn" aria-label="Tocar prévia"><svg viewBox="0 0 24 24" id="playIco"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Posição na prévia">
+      <span class="time" id="timeLbl">0:00 / 0:00</span>
+    </div>
+  </section>
+
+  <nav class="steps" role="tablist">
+    <button role="tab" data-tab="roteiro" aria-selected="true"><b>1</b>Roteiro</button>
+    <button role="tab" data-tab="cenas" aria-selected="false"><b>2</b>Cenas</button>
+    <button role="tab" data-tab="audio" aria-selected="false"><b>3</b>Narração</button>
+    <button role="tab" data-tab="estilo" aria-selected="false"><b>4</b>Estilo</button>
+    <button role="tab" data-tab="exportar" aria-selected="false"><b>5</b>Exportar</button>
+  </nav>
+
+  <!-- 1 ROTEIRO -->
+  <section class="card" data-panel="roteiro">
+    <h2>Roteiro</h2>
+    <p class="hint">Cada linha vira uma cena (uma imagem). A legenda aparece no ritmo da narração. A última linha é a chamada final.</p>
+    <textarea id="script" spellcheck="true" aria-label="Roteiro"></textarea>
+    <div class="row">
+      <span class="pill" id="scriptStats">0 cenas · 0 palavras</span>
+    </div>
+    <div class="row">
+      <select id="tplSel" aria-label="Modelos prontos" style="flex:1">
+        <option value="">Carregar modelo pronto…</option>
+      </select>
+    </div>
+    <div id="aiBox" class="card" style="background:var(--bg)" hidden>
+      <h2>Escrever com IA</h2>
+      <label class="f">Tema do vídeo<input type="text" id="aiTema" value="Relacionamento: sinais escondidos de que algo mudou"></label>
+      <div class="grid2">
+        <label class="f">Duração<select id="aiDur"><option value="30">30 s</option><option value="40" selected>40 s</option><option value="60">60 s</option></select></label>
+        <label class="f">Chamada final<input type="text" id="aiCta" value="Me chama agora no WhatsApp"></label>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="aiGen" style="flex:1">Gerar roteiro</button>
+        <button class="btn" id="aiHooks" style="flex:1">5 ganchos novos</button>
+      </div>
+      <p class="hint" id="aiStatus"></p>
+      <div class="list" id="hookList"></div>
+    </div>
+  </section>
+
+  <!-- 2 CENAS -->
+  <section class="card" data-panel="cenas" hidden>
+    <h2>Cenas</h2>
+    <p class="hint">Toque no quadrinho para escolher a imagem ou vídeo da cena. Ou envie todas de uma vez: elas entram na ordem, a partir da primeira cena vazia.</p>
+    <div class="row">
+      <button class="btn primary" id="addMany" style="flex:1">Adicionar várias (em ordem)</button>
+      <button class="btn" id="aiPrompts" hidden style="flex:1">Prompts de imagem com IA</button>
+    </div>
+    <label class="f" id="charsBox" hidden>Personagens (para manter o mesmo casal em todas as imagens)<input type="text" id="aiChars" value="casal brasileiro de 30 anos, mulher de cabelo castanho ondulado, homem de barba curta"></label>
+    <p class="hint" id="promptStatus"></p>
+    <div class="scenes" id="sceneList"></div>
+    <input type="file" id="fileOne" accept="image/*,video/*" hidden>
+    <input type="file" id="fileMany" accept="image/*,video/*" multiple hidden>
+  </section>
+
+  <!-- 3 NARRAÇÃO -->
+  <section class="card" data-panel="audio" hidden>
+    <h2>Narração</h2>
+    <p class="hint">Envie o áudio da narração (m4a, mp3, wav, ou até um vídeo). O app detecta onde há fala e encaixa cada palavra da legenda sozinho.</p>
+    <div class="row">
+      <button class="btn primary" id="narrBtn" style="flex:1">Enviar áudio</button>
+      <button class="btn" id="recBtn" style="flex:1">Gravar agora</button>
+    </div>
+    <p class="hint" id="recHint" hidden></p>
+    <input type="file" id="narrFile" accept="audio/*,video/*" hidden>
+    <div class="row"><span class="pill" id="narrInfo">Sem narração: a legenda usa um ritmo estimado</span><button class="btn small" id="narrClear" hidden>Remover</button></div>
+    <canvas class="wave" id="wave" width="1000" height="168" aria-label="Forma de onda e marcação das palavras"></canvas>
+    <div class="slider"><span>Ajuste fino da legenda (antes ↔ depois)</span><output id="offOut">0,00 s</output><input type="range" id="offset" min="-0.6" max="0.6" step="0.02" value="0"></div>
+    <div class="slider" id="rateBox"><span>Ritmo sem áudio (palavras por segundo)</span><output id="rateOut">2,6</output><input type="range" id="rate" min="1.6" max="4" step="0.1" value="2.6"></div>
+    <h2 style="margin-top:6px">Música de fundo</h2>
+    <div class="row">
+      <button class="btn" id="musicBtn" style="flex:1">Enviar música</button>
+      <button class="btn small" id="musicClear" hidden>Remover</button>
+    </div>
+    <input type="file" id="musicFile" accept="audio/*" hidden>
+    <span class="pill" id="musicInfo">Sem música</span>
+    <div class="grid2">
+      <div class="slider"><span>Volume voz</span><output id="nvOut">100%</output><input type="range" id="narrVol" min="0" max="1.5" step="0.05" value="1"></div>
+      <div class="slider"><span>Volume música</span><output id="mvOut">15%</output><input type="range" id="musicVol" min="0" max="0.6" step="0.01" value="0.15"></div>
+    </div>
+  </section>
+
+  <!-- 4 ESTILO -->
+  <section class="card" data-panel="estilo" hidden>
+    <h2>Legenda</h2>
+    <div class="seg" id="modeSeg">
+      <button data-mode="type" aria-pressed="true">Digitando</button>
+      <button data-mode="word" aria-pressed="false">Palavra</button>
+      <button data-mode="block" aria-pressed="false">Bloco</button>
+    </div>
+    <div class="grid2">
+      <div class="slider"><span>Tamanho</span><output id="sizeOut"></output><input type="range" id="size" min="4" max="9" step="0.1"></div>
+      <div class="slider"><span>Altura</span><output id="capYOut"></output><input type="range" id="capY" min="40" max="85" step="1"></div>
+      <div class="slider"><span>Letras por bloco</span><output id="maxCharsOut"></output><input type="range" id="maxChars" min="8" max="40" step="1"></div>
+      <div class="slider"><span>Altura da imagem</span><output id="mediaHOut"></output><input type="range" id="mediaH" min="50" max="100" step="1"></div>
+      <label class="f">Cor do texto<input type="color" id="color"></label>
+      <label class="f">Cor de destaque<input type="color" id="hi"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="kenburns"> Zoom lento nas imagens</label>
+    <h2 style="margin-top:6px">Chamada final</h2>
+    <label class="check"><input type="checkbox" id="ctaOn"> Mostrar ícone do WhatsApp e setas na última cena</label>
+    <div class="grid2">
+      <label class="f">Linha 1<input type="text" id="ctaL1"></label>
+      <label class="f">Linha 2<input type="text" id="ctaL2"></label>
+      <label class="f">Cor das setas<input type="color" id="chev"></label>
+      <div class="slider"><span>Segura no fim</span><output id="tailOut"></output><input type="range" id="tail" min="0" max="6" step="0.5"></div>
+    </div>
+    <button class="btn small" id="resetStyle">Voltar ao estilo padrão</button>
+  </section>
+
+  <!-- 5 EXPORTAR -->
+  <section class="card" data-panel="exportar" hidden>
+    <h2>Exportar vídeo</h2>
+    <div class="row" id="checks"></div>
+    <label class="f">Qualidade<select id="res"><option value="720">720 × 1280 (mais rápido)</option><option value="1080">1080 × 1920 (Full HD)</option></select></label>
+    <p class="hint">O vídeo é gravado em tempo real: um VSL de 40 s leva 40 s. Deixe a tela ligada e o app aberto até terminar.</p>
+    <button class="btn go wide" id="exportBtn">Gerar vídeo</button>
+    <div class="progress" id="prog" hidden><i></i></div>
+    <p class="hint" id="exportStatus"></p>
+    <div id="outBox" hidden class="card" style="background:var(--bg)">
+      <video id="outVideo" controls playsinline></video>
+      <button class="btn primary wide" id="saveBtn">Salvar vídeo</button>
+      <p class="hint" id="saveHint"></p>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const cv = $('#cv'); let ctx = cv.getContext('2d');
+let W = cv.width, H = cv.height;
+
+/* ---------- templates ---------- */
+const TPL = {
+  "Sinais escondidos (como o seu vídeo)": `Seu relacionamento mudou e você não sabe explicar o porquê?
+E você sente que algo está diferente entre vocês.
+Não é coisa da sua cabeça.
+Muitas vezes, existem sinais que você não está percebendo.
+Você olha pra essa pessoa e sente um vazio.
+Mas não consegue enxergar o que está escondido.
+A partir de hoje, você pode descobrir a verdade.
+Se você quer descobrir o que está acontecendo,
+Me chama agora no WhatsApp.`,
+  "Ele se afastou": `Ele parou de responder do mesmo jeito?
+As mensagens ficaram curtas e frias.
+E você fica se perguntando o que você fez de errado.
+Mas a resposta pode não estar em você.
+Existe algo acontecendo que ninguém te contou.
+E quanto mais você espera, mais ele se afasta.
+Eu posso te mostrar o que está por trás disso.
+Não deixa pra amanhã.
+Me chama agora no WhatsApp.`,
+  "Voltar com o ex": `Você ainda pensa nessa pessoa todos os dias?
+Mesmo depois de tudo, o sentimento não passou.
+E no fundo você sente que essa história não acabou.
+Talvez você esteja certa.
+Existem caminhos que você ainda não tentou.
+E eu vou te mostrar o primeiro passo.
+Mas só funciona se você agir agora.
+Me chama agora no WhatsApp.`
+};
+
+/* ---------- state ---------- */
+const DEFAULT_STYLE = {mode:'type', size:5.8, capY:60, maxChars:24, mediaH:68, color:'#ffffff', hi:'#ffd400', kenburns:true, ctaOn:true, ctaL1:'ME CHAMA AGORA', ctaL2:'NO WHATSAPP', chev:'#1e90ff', tail:2.5};
+let ST = {script: TPL["Sinais escondidos (como o seu vídeo)"], style:{...DEFAULT_STYLE}, offset:0, rate:2.6, narrVol:1, musicVol:0.15, prompts:[]};
+try { const s = JSON.parse(localStorage.getItem('estudio-vsl-v1')||'null'); if (s) { ST = {...ST, ...s, style:{...DEFAULT_STYLE, ...(s.style||{})}}; } } catch(e){}
+const save = () => { try { localStorage.setItem('estudio-vsl-v1', JSON.stringify(ST)); } catch(e){} };
+
+const MEDIA = [];          // per scene index: {type:'img'|'vid', url, el, name}
+let NARR = null;           // {buffer, env, name}
+let MUSIC = null;          // {buffer, name}
+let TM = {words:[], scenes:[], chunks:[], total:4, lastEnd:0};
+let AC = null;
+const ac = () => { if (!AC) AC = new (window.AudioContext||window.webkitAudioContext)(); return AC; };
+
+/* ---------- helpers ---------- */
+const fmt = t => { t = Math.max(0,t); const m = Math.floor(t/60), s = Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); };
+const num = (v,d=2) => v.toFixed(d).replace('.',',');
+let toastT; const toast = msg => { const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2600); };
+const lines = () => ST.script.split('\n').map(s=>s.trim()).filter(Boolean);
+
+/* ---------- timing ---------- */
+function envelope(buf){
+  const d = buf.getChannelData(0), sr = buf.sampleRate, hop = Math.round(sr*0.02), n = Math.floor(d.length/hop);
+  const e = new Float32Array(n);
+  for (let i=0;i<n;i++){ let s=0; const a=i*hop, b=a+hop; for (let j=a;j<b;j+=2) s+=d[j]*d[j]; e[i]=Math.sqrt(s/(hop/2)); }
+  const so = Array.from(e).sort((a,b)=>a-b);
+  const noise = so[Math.floor(n*0.1)]||0, peak = so[Math.floor(n*0.95)]||0;
+  const thr = noise + (peak-noise)*0.1;
+  const v = new Uint8Array(n); for (let i=0;i<n;i++) v[i] = e[i]>thr ? 1:0;
+  // fill gaps up to 120 ms, drop blips under 60 ms
+  let i=0; while(i<n){ if(!v[i]){ let j=i; while(j<n&&!v[j]) j++; if(i>0&&j<n&&j-i<=6) for(let k=i;k<j;k++) v[k]=1; i=j; } else i++; }
+  i=0; while(i<n){ if(v[i]){ let j=i; while(j<n&&v[j]) j++; if(j-i<3) for(let k=i;k<j;k++) v[k]=0; i=j; } else i++; }
+  return {e, v, hop:0.02, n, peak};
+}
+
+function build(){
+  const L = lines();
+  const words = [];
+  L.forEach((ln,si) => ln.split(/\s+/).filter(Boolean).forEach(w => words.push({t:w, s:si, start:0, end:0})));
+  const weight = w => w.t.replace(/[^\p{L}\p{N}]/gu,'').length + 1.5;
+  let aligned = false;
+  if (NARR && words.length){
+    const {v, hop} = NARR.env; const vi = []; for (let i=0;i<v.length;i++) if (v[i]) vi.push(i);
+    if (vi.length > 5){
+      const ws = words.map(weight), W0 = ws.reduce((a,b)=>a+b,0); let c = 0; const V = vi.length;
+      words.forEach((w,i) => {
+        const a = Math.floor(c/W0*V); c += ws[i]; const b = Math.max(a, Math.ceil(c/W0*V)-1);
+        w.start = vi[Math.min(a,V-1)]*hop; w.end = vi[Math.min(b,V-1)]*hop + hop;
+      });
+      aligned = true;
+    }
+  }
+  if (!aligned){
+    let t = 0.3; const k = 2.6/ST.rate;
+    words.forEach((w,i) => {
+      const n = w.t.replace(/[^\p{L}\p{N}]/gu,'').length;
+      const d = (0.13 + 0.052*n)*k; w.start = t; w.end = t+d; t += d;
+      if (/[.!?…]$/.test(w.t)) t += 0.35*k; else if (/[,;:]$/.test(w.t)) t += 0.18*k;
+      if (words[i+1] && words[i+1].s !== w.s) t += 0.15*k;
+    });
+  }
+  words.forEach(w => { w.start = Math.max(0, w.start+ST.offset); w.end = Math.max(w.start+0.05, w.end+ST.offset); });
+  const lastEnd = words.length ? words[words.length-1].end : 0;
+  const narrDur = NARR ? NARR.buffer.duration : 0;
+  const total = Math.max(lastEnd, narrDur) + ST.style.tail + 0.01;
+  const scenes = L.map((text,i) => {
+    const fw = words.find(w=>w.s===i);
+    return {text, start: i===0 ? 0 : Math.max(0,(fw?fw.start:0)-0.08)};
+  });
+  scenes.forEach((s,i) => s.end = i<scenes.length-1 ? scenes[i+1].start : total);
+  // caption chunks
+  const chunks = []; let cur = null;
+  const flush = () => { if (cur && cur.idx.length) chunks.push(cur); cur = null; };
+  words.forEach((w,i) => {
+    const len = w.t.length;
+    if (cur && (cur.s !== w.s || cur.chars + 1 + len > ST.style.maxChars)) flush();
+    if (!cur) cur = {s:w.s, idx:[], chars:-1};
+    cur.idx.push(i); cur.chars += len+1;
+    if (/[.!?…,;:]$/.test(w.t) && cur.chars >= 8) flush();
+  });
+  flush();
+  chunks.forEach(c => { c.start = words[c.idx[0]].start; c.end = words[c.idx[c.idx.length-1]].end; });
+  chunks.forEach((c,k) => {
+    const nx = chunks[k+1];
+    c.until = nx && nx.start - c.end < 1.0 ? nx.start : Math.min(c.end + 0.9, nx ? nx.start : Infinity);
+  });
+  TM = {words, scenes, chunks, total, lastEnd};
+  const nW = words.length;
+  $('#scriptStats').textContent = `${L.length} cenas · ${nW} palavras · ~${Math.round(total)} s`;
+}
+
+/* ---------- drawing ---------- */
+function cover(src, sw, sh, rx, ry, rw, rh, scale, pan){
+  if (!sw || !sh) return;
+  const r = Math.max(rw/sw, rh/sh)*scale, dw = sw*r, dh = sh*r;
+  const dx = rx + (rw-dw)/2 + pan*(dw-rw)/2, dy = ry + (rh-dh)*0.4;
+  ctx.drawImage(src, dx, dy, dw, dh);
+}
+function drawScene(i, t, alpha){
+  const sc = TM.scenes[i]; if (!sc) return;
+  const mh = H*ST.style.mediaH/100;
+  const m = MEDIA[i];
+  ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.rect(0,0,W,mh); ctx.clip();
+  const p = Math.min(1, Math.max(0,(t-sc.start)/Math.max(0.5, sc.end-sc.start)));
+  const kb = ST.style.kenburns ? (i%2 ? 1.1 - 0.08*p : 1.02 + 0.08*p) : 1;
+  const pan = ST.style.kenburns ? (i%3===0 ? -0.25 : i%3===1 ? 0.25 : 0) * (p-0.5) : 0;
+  if (m && m.type==='img') cover(m.el, m.el.naturalWidth, m.el.naturalHeight, 0,0,W,mh, kb, pan);
+  else if (m && m.type==='vid' && m.el.readyState >= 2) cover(m.el, m.el.videoWidth, m.el.videoHeight, 0,0,W,mh, ST.style.kenburns?1.02:1, 0);
+  else {
+    const hue = (i*47+205)%360; const g = ctx.createLinearGradient(0,0,W,mh);
+    g.addColorStop(0, `hsl(${hue} 35% 22%)`); g.addColorStop(1, `hsl(${(hue+40)%360} 30% 9%)`);
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,mh);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font = `900 ${W*0.07}px Montserrat, sans-serif`; ctx.fillText('CENA '+(i+1), W/2, mh*0.38);
+    ctx.font = `700 ${W*0.032}px Manrope, sans-serif`; ctx.fillStyle='rgba(255,255,255,.4)'; ctx.fillText('adicione a imagem na aba Cenas', W/2, mh*0.38 + W*0.07);
+  }
+  ctx.restore();
+}
+function layout(text, px){
+  ctx.font = `900 ${px}px Montserrat, sans-serif`;
+  const maxW = W*0.86, sp = ctx.measureText(' ').width, out = []; let line = {ws:[], w:0};
+  text.forEach(o => { const w = ctx.measureText(o.t).width; if (line.ws.length && line.w + sp + w > maxW){ out.push(line); line={ws:[],w:0}; } line.w += (line.ws.length?sp:0) + w; line.ws.push({...o, w}); });
+  if (line.ws.length) out.push(line);
+  return {lines: out, sp};
+}
+function drawCaption(t){
+  const s = ST.style; const ch = TM.chunks.find(c => t >= c.start - 0.02 && t < c.until);
+  if (!ch) return;
+  const px = W*s.size/100, lh = px*1.12, cy = H*s.capY/100;
+  const items = ch.idx.map(i => ({t: TM.words[i].t.toUpperCase(), i}));
+  let show = items;
+  if (s.mode === 'word'){ let cur = items[0]; items.forEach(o => { if (t >= TM.words[o.i].start - 0.02) cur = o; }); show = [cur]; }
+  const {lines: L, sp} = layout(show, px);
+  ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.lineJoin = 'round'; ctx.lineWidth = px*0.14; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = px*0.25;
+  let pop = 1;
+  if (s.mode === 'word'){ const w = TM.words[show[0].i]; pop = 0.86 + 0.14*Math.min(1, Math.max(0,(t-w.start)/0.12)); }
+  const y0 = cy - (L.length-1)*lh/2;
+  L.forEach((ln, li) => {
+    let x = W/2 - ln.w/2; const y = y0 + li*lh;
+    if (pop !== 1){ ctx.translate(W/2, y); ctx.scale(pop,pop); ctx.translate(-W/2, -y); }
+    ln.ws.forEach(o => {
+      const w = TM.words[o.i]; let txt = o.t;
+      if (s.mode === 'type'){
+        if (t < w.start) txt = ''; else if (t < w.end){ const n = Math.max(1, Math.ceil(o.t.length * (t-w.start)/(w.end-w.start))); txt = o.t.slice(0,n); }
+      }
+      const active = s.mode === 'block' && t >= w.start && t < (TM.words[o.i+1] ? Math.min(TM.words[o.i+1].start, w.end+0.6) : w.end+0.6);
+      if (txt){ ctx.strokeText(txt, x, y); ctx.shadowBlur = 0; ctx.fillStyle = active ? s.hi : s.color; ctx.fillText(txt, x, y); ctx.shadowBlur = px*0.25; }
+      x += o.w + sp;
+    });
+    if (pop !== 1) ctx.setTransform(1,0,0,1,0,0);
+  });
+  ctx.restore();
+}
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function drawWhats(cx, cy, s){
+  ctx.save(); ctx.fillStyle = '#25D366'; rr(cx-s/2, cy-s/2, s, s, s*0.24); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = s*0.075;
+  const r = s*0.3; ctx.beginPath(); ctx.arc(cx, cy-s*0.01, r, 0.72*Math.PI, 2.62*Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - r*0.78, cy + r*0.55); ctx.lineTo(cx - r*1.05, cy + r*1.05); ctx.lineTo(cx - r*0.4, cy + r*0.86); ctx.closePath(); ctx.fill();
+  ctx.lineWidth = s*0.1; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx+r*0.05, cy-s*0.01+r*0.02, r*0.5, 0.62*Math.PI, 1.38*Math.PI); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx - r*0.3, cy - r*0.42, s*0.05, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + r*0.3, cy + r*0.42, s*0.05, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawCTA(t, t0){
+  const s = ST.style, k = t - t0, ap = Math.min(1, k/0.35);
+  ctx.save(); ctx.globalAlpha = ap;
+  const iy = H*0.70, isz = W*0.085;
+  drawWhats(W/2, iy, isz*(0.9+0.1*ap));
+  const px = W*0.058, pulse = 1 + 0.035*Math.sin(k*5);
+  ctx.translate(W/2, iy + isz*0.95); ctx.scale(pulse, pulse);
+  ctx.font = `900 ${px}px Montserrat, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.lineJoin='round'; ctx.lineWidth=px*0.14; ctx.strokeStyle='rgba(0,0,0,.85)'; ctx.fillStyle = s.color;
+  [s.ctaL1, s.ctaL2].filter(Boolean).forEach((l,i)=>{ const y = i*px*1.1; ctx.strokeText(l.toUpperCase(),0,y); ctx.fillText(l.toUpperCase(),0,y); });
+  ctx.setTransform(1,0,0,1,0,0);
+  const top = iy + isz*0.95 + px*2.3, cw = W*0.085, gap = W*0.034;
+  ctx.lineWidth = W*0.012; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle = s.chev; ctx.shadowColor = s.chev;
+  for (let i=0;i<5;i++){
+    const phase = ((k*6) - i) % 5; const on = phase >= 0 && phase < 1.6 ? 1 : 0.35;
+    ctx.globalAlpha = ap*on; ctx.shadowBlur = on>0.5 ? W*0.03 : W*0.008;
+    const y = top + i*gap; ctx.beginPath(); ctx.moveTo(W/2-cw/2, y); ctx.lineTo(W/2, y+cw*0.42); ctx.lineTo(W/2+cw/2, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+function draw(t){
+  ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+  const S = TM.scenes; if (!S.length){ return; }
+  let i = 0; for (let k=0;k<S.length;k++) if (t >= S[k].start) i = k;
+  const fade = 0.28, since = t - S[i].start;
+  if (i>0 && since < fade){ drawScene(i-1, t, 1); drawScene(i, t, since/fade); } else drawScene(i, t, 1);
+  const mh = H*ST.style.mediaH/100;
+  const g = ctx.createLinearGradient(0, mh*0.55, 0, mh); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,1)');
+  ctx.fillStyle = g; ctx.fillRect(0, mh*0.55, W, mh*0.45+1);
+  const ctaStart = ST.style.ctaOn ? (S.length > 1 ? S[S.length-1].start : TM.lastEnd) : Infinity;
+  if (t >= ctaStart) drawCTA(t, ctaStart); else drawCaption(t);
+}
+
+/* ---------- videos inside scenes ---------- */
+function syncVideos(t, playing){
+  MEDIA.forEach((m,i) => {
+    if (!m || m.type!=='vid') return; const sc = TM.scenes[i]; const v = m.el;
+    const active = sc && ((t >= sc.start - 0.3 && t < sc.end) || (TM.scenes[i+1] && t >= TM.scenes[i+1].start && t < TM.scenes[i+1].start+0.3));
+    if (active){
+      const want = Math.max(0, t - sc.start) % Math.max(0.1, v.duration || 1);
+      if (playing){ if (v.paused){ try{ v.currentTime = want; }catch(e){} v.play().catch(()=>{}); } }
+      else { if (!v.paused) v.pause(); if (Math.abs(v.currentTime - want) > 0.15) try{ v.currentTime = want; }catch(e){} }
+    } else if (!v.paused) v.pause();
+  });
+}
+
+/* ---------- playback (preview + export share this) ---------- */
+let P = {playing:false, t:0, t0:0, nodes:[], raf:0, onFrame:null, onEnd:null};
+function startAudio(from, dest){
+  const a = ac(); const nodes = [];
+  if (NARR && from < NARR.buffer.duration){
+    const src = a.createBufferSource(); src.buffer = NARR.buffer; const g = a.createGain(); g.gain.value = ST.narrVol;
+    src.connect(g); g.connect(dest || a.destination); if (dest) g.connect(a.destination);
+    src.start(a.currentTime + 0.05, from); nodes.push(src);
+  }
+  if (MUSIC){
+    const src = a.createBufferSource(); src.buffer = MUSIC.buffer; src.loop = true; const g = a.createGain(); g.gain.value = ST.musicVol;
+    src.connect(g); g.connect(dest || a.destination); if (dest) g.connect(a.destination);
+    src.start(a.currentTime + 0.05, from % MUSIC.buffer.duration); nodes.push(src);
+  }
+  return nodes;
+}
+function play(opts={}){
+  const a = ac(); a.resume();
+  if (P.t >= TM.total - 0.05) P.t = 0;
+  P.playing = true; P.nodes = startAudio(P.t, opts.dest); P.t0 = a.currentTime + 0.05 - P.t;
+  setIcon(true);
+  const loop = () => {
+    if (!P.playing) return;
+    P.t = Math.max(0, a.currentTime - P.t0);
+    if (P.t >= TM.total){ P.t = TM.total; stop(); draw(P.t); updTime(); P.onEnd && P.onEnd(); return; }
+    syncVideos(P.t, true); draw(P.t); updTime(); P.onFrame && P.onFrame(P.t);
+    P.raf = requestAnimationFrame(loop);
+  };
+  P.raf = requestAnimationFrame(loop);
+}
+function stop(){
+  P.playing = false; cancelAnimationFrame(P.raf);
+  P.nodes.forEach(n => { try{ n.stop(); }catch(e){} }); P.nodes = [];
+  syncVideos(P.t, false); setIcon(false);
+}
+function setIcon(pl){ $('#playIco').innerHTML = pl ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>'; $('#playBtn').setAttribute('aria-label', pl ? 'Pausar prévia' : 'Tocar prévia'); }
+function updTime(){ $('#timeLbl').textContent = fmt(P.t)+' / '+fmt(TM.total); $('#scrub').value = Math.round(P.t/TM.total*1000); }
+function redraw(){ build(); if (P.t > TM.total) P.t = TM.total; syncVideos(P.t,false); draw(P.t); updTime(); drawWave(); renderChecks(); }
+
+$('#playBtn').onclick = () => { if (REC) return; P.playing ? stop() : play(); };
+$('#scrub').oninput = e => { if (REC) return; const was = P.playing; if (was) stop(); P.t = e.target.value/1000*TM.total; syncVideos(P.t,false); draw(P.t); updTime(); };
+
+/* ---------- tabs ---------- */
+$$('nav.steps button').forEach(b => b.onclick = () => {
+  $$('nav.steps button').forEach(x => x.setAttribute('aria-selected', x===b));
+  $$('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== b.dataset.tab);
+  if (b.dataset.tab==='cenas') renderScenes();
+  if (b.dataset.tab==='audio') drawWave();
+  if (b.dataset.tab==='exportar') renderChecks();
+});
+
+/* ---------- 1 roteiro ---------- */
+const sc = $('#script'); sc.value = ST.script;
+let deb; sc.oninput = () => { ST.script = sc.value; save(); clearTimeout(deb); deb = setTimeout(redraw, 200); };
+Object.keys(TPL).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; $('#tplSel').appendChild(o); });
+$('#tplSel').onchange = e => { const k = e.target.value; if (!k) return; ST.script = sc.value = TPL[k]; ST.prompts = []; save(); redraw(); e.target.value=''; toast('Modelo carregado'); };
+
+/* ---------- AI (Claude, when available) ---------- */
+let SAMPLE = null, DL = null;
+(async () => {
+  try {
+    if (window.claude && window.claude.use){
+      const [s, d] = await Promise.all([window.claude.use('sample'), window.claude.use('downloads')]);
+      SAMPLE = s; DL = d;
+    }
+  } catch(e){}
+  if (SAMPLE){ $('#aiBox').hidden = false; $('#aiPrompts').hidden = false; $('#charsBox').hidden = false; }
+})();
+const aiErr = e => (e && e.code === 'not_granted') ? 'A IA foi recusada neste aparelho. Você ainda pode escrever o roteiro à mão.' : (e && e.code === 'rate_limited') ? 'Muitos pedidos seguidos. Espere um minuto e tente de novo.' : 'Não deu para falar com a IA agora. Tente de novo.';
+$('#aiGen').onclick = async () => {
+  if (!SAMPLE) return; const dur = +$('#aiDur').value;
+  $('#aiStatus').textContent = 'Escrevendo o roteiro…'; $('#aiGen').disabled = true;
+  try {
+    const r = await SAMPLE.json(`Você é roteirista de VSLs curtas (anúncio em vídeo vertical para Instagram/TikTok) em português do Brasil.
+Escreva o roteiro de narração para o tema: "${$('#aiTema').value}".
+Duração alvo: ${dur} segundos, cerca de ${Math.round(dur*2.5)} palavras no total.
+Estrutura: 1) gancho forte na primeira linha, que para a rolagem (pergunta ou afirmação direta); 2) identificação com a dor; 3) curiosidade sobre algo escondido que a pessoa não percebe; 4) promessa do que ela vai descobrir; 5) última linha exatamente: "${$('#aiCta').value}".
+Regras: cada linha é uma cena e tem de 4 a 11 palavras; fale com "você"; linguagem simples e falada; sem emojis, hashtags, rótulos ou aspas; não prometa resultados garantidos.
+Responda apenas com JSON: {"linhas": ["...", "..."]}`, {modelTier:'default'});
+    if (r && Array.isArray(r.linhas) && r.linhas.length){ ST.script = sc.value = r.linhas.join('\n'); ST.prompts = []; save(); redraw(); $('#aiStatus').textContent = 'Pronto. Edite o que quiser.'; }
+    else $('#aiStatus').textContent = 'A resposta veio vazia. Tente de novo.';
+  } catch(e){ $('#aiStatus').textContent = aiErr(e); }
+  $('#aiGen').disabled = false;
+};
+$('#aiHooks').onclick = async () => {
+  if (!SAMPLE) return; $('#aiStatus').textContent = 'Criando ganchos…'; $('#aiHooks').disabled = true;
+  try {
+    const r = await SAMPLE.json(`Crie 5 ganchos diferentes (primeira frase de um VSL curto em vídeo vertical, português do Brasil) para o tema "${$('#aiTema').value}". Roteiro atual:\n${ST.script}\nCada gancho tem de 5 a 12 palavras, fala com "você" e faz a pessoa parar de rolar. Varie: pergunta, afirmação chocante, segredo, identificação. Sem emojis. Responda só JSON: {"ganchos":["..."]}`, {modelTier:'quick'});
+    const box = $('#hookList'); box.innerHTML = '';
+    (r && r.ganchos || []).forEach(h => { const b = document.createElement('button'); b.textContent = h; b.onclick = () => { const L = ST.script.split('\n'); const i = L.findIndex(x=>x.trim()); L[i<0?0:i] = h; ST.script = sc.value = L.join('\n'); save(); redraw(); toast('Gancho trocado'); }; box.appendChild(b); });
+    $('#aiStatus').textContent = 'Toque em um gancho para usar como primeira linha.';
+  } catch(e){ $('#aiStatus').textContent = aiErr(e); }
+  $('#aiHooks').disabled = false;
+};
+$('#aiPrompts').onclick = async () => {
+  if (!SAMPLE) return; const L = lines(); $('#promptStatus').textContent = 'Escrevendo os prompts de imagem…'; $('#aiPrompts').disabled = true;
+  try {
+    const r = await SAMPLE.json(`Para cada cena deste VSL, escreva um prompt em inglês para um gerador de imagens (Midjourney, Ideogram, ChatGPT). Estilo: foto realista cinematográfica, vertical 9:16, luz dramática, emoção clara no rosto, profundidade de campo rasa, sem texto na imagem. Personagens fixos em todas as cenas: ${$('#aiChars').value}. Descreva a ação que ilustra a frase. Cenas:\n${L.map((l,i)=>(i+1)+'. '+l).join('\n')}\nResponda só JSON: {"prompts":["..."]} com ${L.length} itens na mesma ordem.`, {modelTier:'default'});
+    if (r && Array.isArray(r.prompts)){ ST.prompts = r.prompts; save(); renderScenes(); $('#promptStatus').textContent = 'Toque em "Copiar" e cole no seu gerador de imagens.'; }
+  } catch(e){ $('#promptStatus').textContent = aiErr(e); }
+  $('#aiPrompts').disabled = false;
+};
+
+/* ---------- 2 cenas ---------- */
+async function loadMedia(file){
+  const url = URL.createObjectURL(file);
+  if (file.type.startsWith('video')){
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = true; v.preload = 'auto'; v.setAttribute('playsinline',''); v.src = url;
+    await new Promise(r => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 4000); v.load(); });
+    return {type:'vid', url, el:v, name:file.name};
+  }
+  const img = new Image(); img.src = url; try { await img.decode(); } catch(e){ await new Promise(r=>{img.onload=r;img.onerror=r;}); }
+  return {type:'img', url, el:img, name:file.name};
+}
+function renderScenes(){
+  const box = $('#sceneList'); box.innerHTML = ''; const L = lines();
+  L.forEach((t,i) => {
+    const m = MEDIA[i]; const sc = TM.scenes[i];
+    const d = document.createElement('div'); d.className = 'scene';
+    const th = document.createElement('button'); th.className = 'thumb'; th.setAttribute('aria-label', 'Escolher mídia da cena '+(i+1));
+    if (m){ const el = document.createElement(m.type==='vid'?'video':'img'); el.src = m.url; if (m.type==='vid'){ el.muted = true; el.playsInline = true; el.setAttribute('playsinline',''); } th.appendChild(el); }
+    else th.textContent = '+ '+(i+1);
+    th.onclick = () => { $('#fileOne').dataset.idx = i; $('#fileOne').click(); };
+    const right = document.createElement('div');
+    right.innerHTML = `<div class="txt"></div><div class="meta"><span class="pill">${sc ? num(sc.start,1)+' s' : ''}</span>${m?'<span class="pill ok">'+(m.type==='vid'?'vídeo':'imagem')+'</span>':'<span class="pill warn">sem imagem</span>'}</div>`;
+    right.querySelector('.txt').textContent = t;
+    const meta = right.querySelector('.meta');
+    if (m){ const rm = document.createElement('button'); rm.className='btn small'; rm.textContent='Remover'; rm.onclick=()=>{ MEDIA[i]=undefined; renderScenes(); redraw(); }; meta.appendChild(rm); }
+    if (ST.prompts[i]){
+      const pr = document.createElement('div'); pr.className='prompt'; pr.textContent = ST.prompts[i];
+      const cp = document.createElement('button'); cp.className='btn small'; cp.textContent='Copiar prompt';
+      cp.onclick = () => { navigator.clipboard.writeText(ST.prompts[i]).then(()=>toast('Prompt copiado')).catch(()=>{ const r=document.createRange(); r.selectNodeContents(pr); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Selecionado: toque em Copiar'); }); };
+      meta.appendChild(cp); right.appendChild(pr);
+    }
+    d.append(th, right); box.appendChild(d);
+  });
+}
+$('#fileOne').onchange = async e => { const f = e.target.files[0]; if (!f) return; const i = +e.target.dataset.idx; MEDIA[i] = await loadMedia(f); e.target.value=''; renderScenes(); P.t = TM.scenes[i] ? TM.scenes[i].start + 0.4 : P.t; redraw(); };
+$('#addMany').onclick = () => $('#fileMany').click();
+$('#fileMany').onchange = async e => {
+  const files = [...e.target.files]; e.target.value=''; if (!files.length) return;
+  const n = lines().length; let i = 0; while (i<n && MEDIA[i]) i++;
+  if (i >= n) i = 0;
+  toast('Carregando '+files.length+' arquivo(s)…');
+  for (const f of files){ if (i >= n) break; MEDIA[i++] = await loadMedia(f); }
+  if (files.length > n) toast(`${files.length - n} arquivo(s) sobraram: o roteiro tem ${n} cenas`); else toast('Mídias adicionadas');
+  renderScenes(); redraw();
+};
+
+/* ---------- 3 narração ---------- */
+async function decodeFile(file){ const buf = await file.arrayBuffer(); const a = ac(); return await new Promise((res, rej) => { const p = a.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); }); }
+async function setNarration(blobOrFile, name){
+  $('#narrInfo').textContent = 'Lendo o áudio…';
+  try {
+    const buffer = await decodeFile(blobOrFile);
+    NARR = {buffer, env: envelope(buffer), name};
+    $('#narrInfo').textContent = `${name} · ${num(buffer.duration,1)} s · legenda encaixada na fala`; $('#narrInfo').className = 'pill ok';
+    $('#narrClear').hidden = false; $('#rateBox').hidden = true; P.t = 0; redraw();
+  } catch(e){ $('#narrInfo').textContent = 'Não consegui ler esse arquivo. Tente m4a, mp3 ou wav.'; $('#narrInfo').className='pill warn'; }
+}
+$('#narrBtn').onclick = () => { ac(); $('#narrFile').click(); };
+$('#narrFile').onchange = e => { const f = e.target.files[0]; e.target.value=''; if (f) setNarration(f, f.name); };
+$('#narrClear').onclick = () => { NARR = null; $('#narrInfo').textContent = 'Sem narração: a legenda usa um ritmo estimado'; $('#narrInfo').className='pill'; $('#narrClear').hidden = true; $('#rateBox').hidden = false; redraw(); };
+let MR = null;
+$('#recBtn').onclick = async () => {
+  if (MR){ MR.stop(); return; }
+  ac();
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true}});
+    const chunks = []; MR = new MediaRecorder(st);
+    MR.ondataavailable = e => e.data.size && chunks.push(e.data);
+    MR.onstop = () => { st.getTracks().forEach(t=>t.stop()); MR = null; $('#recBtn').textContent = 'Gravar agora'; $('#recBtn').classList.remove('go'); setNarration(new Blob(chunks, {type: chunks[0]?.type || 'audio/mp4'}), 'gravação'); };
+    MR.start(); $('#recBtn').textContent = 'Parar gravação'; $('#recBtn').classList.add('go');
+    $('#recHint').hidden = false; $('#recHint').textContent = 'Gravando. Leia o roteiro com calma e toque em Parar.';
+  } catch(e){
+    $('#recHint').hidden = false;
+    $('#recHint').innerHTML = 'O microfone não está liberado aqui. No iPhone, grave no app <b>Gravador</b> (ou na sua ferramenta de voz), toque em Compartilhar → <b>Salvar em Arquivos</b>, e depois use <b>Enviar áudio</b>.';
+  }
+};
+$('#musicBtn').onclick = () => { ac(); $('#musicFile').click(); };
+$('#musicFile').onchange = async e => { const f = e.target.files[0]; e.target.value=''; if (!f) return; try { MUSIC = {buffer: await decodeFile(f), name: f.name}; $('#musicInfo').textContent = f.name; $('#musicInfo').className='pill ok'; $('#musicClear').hidden=false; } catch(err){ $('#musicInfo').textContent = 'Não consegui ler essa música'; } renderChecks(); };
+$('#musicClear').onclick = () => { MUSIC = null; $('#musicInfo').textContent='Sem música'; $('#musicInfo').className='pill'; $('#musicClear').hidden=true; renderChecks(); };
+
+function drawWave(){
+  const c = $('#wave'), g = c.getContext('2d'), w = c.width, h = c.height; g.clearRect(0,0,w,h);
+  const T = TM.total || 1;
+  if (NARR){
+    const {e, v, hop, peak} = NARR.env; const n = e.length;
+    for (let x=0;x<w;x++){ const i = Math.floor(x/w*T/hop); if (i>=n) break; const a = Math.min(1, e[i]/(peak||1)); g.fillStyle = v[i] ? '#2F8CFF' : '#2a3245'; const bh = Math.max(2, a*h*0.42); g.fillRect(x, h*0.45-bh, 1, bh*2); }
+  } else { g.fillStyle = '#2a3245'; g.fillRect(0, h*0.45-1, w, 2); }
+  g.font = '600 20px Manrope, sans-serif'; g.textBaseline='bottom';
+  TM.words.forEach((wd,i) => { const x = wd.start/T*w; g.fillStyle = 'rgba(255,212,0,.85)'; g.fillRect(x, h-34, 2, 10); });
+  TM.scenes.forEach((s,i) => { const x = s.start/T*w; g.fillStyle = '#EDF0F6'; g.fillRect(x, 0, 2, h); g.fillText(String(i+1), x+5, 24); });
+}
+const bindSlider = (id, key, outId, f, obj=ST) => { const el = $(id); el.value = obj[key]; const o = $(outId); const upd = () => { o.textContent = f(+el.value); }; upd(); el.oninput = () => { obj[key] = +el.value; upd(); save(); redraw(); }; };
+bindSlider('#offset','offset','#offOut', v => (v>0?'+':'')+num(v)+' s');
+bindSlider('#rate','rate','#rateOut', v => num(v,1));
+bindSlider('#narrVol','narrVol','#nvOut', v => Math.round(v*100)+'%');
+bindSlider('#musicVol','musicVol','#mvOut', v => Math.round(v*100)+'%');
+
+/* ---------- 4 estilo ---------- */
+function bindStyle(){
+  const s = ST.style;
+  bindSlider('#size','size','#sizeOut', v => num(v,1), s);
+  bindSlider('#capY','capY','#capYOut', v => v+'%', s);
+  bindSlider('#maxChars','maxChars','#maxCharsOut', v => v, s);
+  bindSlider('#mediaH','mediaH','#mediaHOut', v => v+'%', s);
+  bindSlider('#tail','tail','#tailOut', v => num(v,1)+' s', s);
+  ['color','hi','chev','ctaL1','ctaL2'].forEach(k => { const el = $('#'+k); el.value = s[k]; el.oninput = () => { s[k] = el.value; save(); redraw(); }; });
+  ['kenburns','ctaOn'].forEach(k => { const el = $('#'+k); el.checked = s[k]; el.onchange = () => { s[k] = el.checked; save(); redraw(); }; });
+  $$('#modeSeg button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.mode===s.mode); b.onclick = () => { s.mode = b.dataset.mode; $$('#modeSeg button').forEach(x=>x.setAttribute('aria-pressed', x===b)); save(); redraw(); }; });
+}
+bindStyle();
+$('#resetStyle').onclick = () => { ST.style = {...DEFAULT_STYLE}; save(); bindStyle(); redraw(); toast('Estilo padrão'); };
+
+/* ---------- 5 exportar ---------- */
+function renderChecks(){
+  const n = lines().length, withMedia = MEDIA.slice(0,n).filter(Boolean).length;
+  const c = $('#checks'); if (!c) return;
+  c.innerHTML = '';
+  const add = (ok, txt) => { const p = document.createElement('span'); p.className = 'pill '+(ok?'ok':'warn'); p.textContent = (ok?'✓ ':'! ')+txt; c.appendChild(p); };
+  add(withMedia===n, `${withMedia}/${n} cenas com imagem`);
+  add(!!NARR, NARR ? 'narração ok' : 'sem narração (vídeo mudo)');
+  add(true, `${fmt(TM.total)} de vídeo`);
+  if (MUSIC) add(true, 'música ok');
+}
+function pickMime(){
+  const c = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1,mp4a','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  for (const m of c) try { if (MediaRecorder.isTypeSupported(m)) return m; } catch(e){}
+  return '';
+}
+let REC = null, OUT = null;
+function setRes(px){ const w = px===1080 ? 1080 : 720; cv.width = w; cv.height = Math.round(w*16/9); W = cv.width; H = cv.height; ctx = cv.getContext('2d'); }
+$('#exportBtn').onclick = async () => {
+  if (REC){ REC.stop(); return; }
+  if (typeof MediaRecorder === 'undefined' || !cv.captureStream){ $('#exportStatus').textContent = 'Este navegador não grava vídeo. No iPhone, atualize o iOS e abra no Safari.'; return; }
+  stop(); const a = ac(); await a.resume();
+  try { await document.fonts.load('900 40px Montserrat'); } catch(e){}
+  setRes(+$('#res').value); build();
+  const dest = a.createMediaStreamDestination();
+  const vs = cv.captureStream(30);
+  const tracks = [...vs.getVideoTracks()]; if (NARR || MUSIC) tracks.push(...dest.stream.getAudioTracks());
+  const mime = pickMime(); const chunks = [];
+  try { REC = new MediaRecorder(new MediaStream(tracks), mime ? {mimeType:mime, videoBitsPerSecond: W>=1080 ? 9e6 : 5e6, audioBitsPerSecond: 128000} : undefined); }
+  catch(e){ $('#exportStatus').textContent = 'Não consegui iniciar a gravação neste aparelho.'; return; }
+  let wl = null; try { wl = await navigator.wakeLock?.request('screen'); } catch(e){}
+  REC.ondataavailable = e => e.data.size && chunks.push(e.data);
+  REC.onstop = () => {
+    stop(); try { wl && wl.release(); } catch(e){}
+    const type = REC.mimeType || mime || 'video/mp4';
+    OUT = {blob: new Blob(chunks, {type}), ext: type.includes('mp4') ? 'mp4' : 'webm'};
+    REC = null; P.onFrame = P.onEnd = null;
+    $('#exportBtn').textContent = 'Gerar de novo'; $('#prog').hidden = true;
+    if (!OUT.blob.size){ $('#exportStatus').textContent = 'A gravação saiu vazia. Tente de novo com a tela ligada.'; return; }
+    $('#exportStatus').textContent = `Pronto: ${(OUT.blob.size/1048576).toFixed(1).replace('.',',')} MB, formato ${OUT.ext.toUpperCase()}.`;
+    $('#outVideo').src = URL.createObjectURL(OUT.blob); $('#outBox').hidden = false; $('#saveHint').textContent = '';
+    setRes(720); redraw();
+  };
+  $('#outBox').hidden = true; $('#prog').hidden = false; $('#prog i').style.width = '0';
+  $('#exportBtn').textContent = 'Cancelar'; $('#exportStatus').textContent = 'Gravando… mantenha esta tela aberta.';
+  P.t = 0; draw(0);
+  REC.start(500);
+  P.onFrame = t => { $('#prog i').style.width = (t/TM.total*100)+'%'; };
+  P.onEnd = () => { setTimeout(() => REC && REC.state !== 'inactive' && REC.stop(), 250); };
+  play({dest});
+};
+$('#saveBtn').onclick = async () => {
+  if (!OUT) return; const name = 'vsl-' + new Date().toISOString().slice(0,16).replace(/[-:T]/g,'') + '.' + OUT.ext;
+  if (DL){
+    try { await DL.save({filename:name, data:OUT.blob}); $('#saveHint').textContent = 'Enviado para salvar. No iPhone, escolha "Salvar vídeo" na folha de compartilhamento.'; }
+    catch(e){ $('#saveHint').textContent = e && e.code==='declined' ? 'Você cancelou. Toque de novo para salvar.' : e && e.code==='rate_limited' ? 'Aguarde um instante e toque de novo.' : 'Não deu para salvar por aqui.'; }
+    return;
+  }
+  const file = new File([OUT.blob], name, {type: OUT.blob.type});
+  if (navigator.canShare && navigator.canShare({files:[file]})){ try { await navigator.share({files:[file]}); return; } catch(e){ if (e.name==='AbortError') return; } }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(OUT.blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+};
+
+/* ---------- boot ---------- */
+(async () => {
+  try { await document.fonts.load('900 40px Montserrat'); await document.fonts.load('700 20px Manrope'); } catch(e){}
+  P.t = 1.2; redraw();
+})();
+build(); draw(0); updTime();
+})();
+</script>
+
+</body></html>
